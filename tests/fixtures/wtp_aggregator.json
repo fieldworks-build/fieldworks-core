@@ -1,0 +1,25 @@
+[
+  {
+    "name": "mqtt_intake",
+    "url": "http://localhost:8001/sse",
+    "include_tools": ["read_tag", "read_tag_history", "discover_tags"],
+    "default_args": {
+      "topic_filter": "Plant/WTP/Pump/RawWater_*"
+    },
+    "description": "Raw water intake pump data"
+  },
+  {
+    "name": "mqtt_distribution",
+    "url": "http://localhost:8001/sse",
+    "include_tools": ["read_tag", "read_tag_history", "discover_tags", "write_tag"],
+    "default_args": {
+      "topic_filter": "Plant/WTP/Pump/HighService_*"
+    },
+    "description": "High service pump data — write access enabled"
+  },
+  {
+    "name": "influxdb",
+    "url": "http://localhost:8003/sse",
+    "description": "InfluxDB historian"
+  }
+]

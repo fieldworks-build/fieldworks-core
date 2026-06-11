@@ -1,0 +1,123 @@
+facility:
+  name: Riverside Water Treatment Plant
+  site_id: wtp-riverside-01
+  description: Municipal water treatment facility, 45 MGD capacity
+  timezone: America/Chicago
+  units_system: metric
+
+process_areas:
+  - id: intake
+    name: Raw Water Intake
+    description: Screens and pumps raw water from the source into the treatment process.
+    specialist_prompt: This plant draws from a river source with seasonal turbidity variation.
+
+  - id: distribution
+    name: Treated Water Distribution
+    description: Pumping of treated water to the distribution network.
+
+equipment_types:
+  - id: centrifugal_pump
+    name: Centrifugal Pump
+    description: Moves water through the process via impeller rotation.
+    attributes:
+      - id: discharge_pressure
+        name: Discharge Pressure
+        units: bar
+        normal_range:
+          min: 2.8
+          max: 4.2
+        description: Varies with system demand.
+      - id: motor_current
+        name: Motor Current
+        units: A
+        normal_range:
+          min: 18.0
+          max: 32.0
+      - id: vibration
+        name: Vibration
+        units: mm/s
+        normal_range:
+          min: 0.0
+          max: 4.5
+      - id: bearing_temp
+        name: Bearing Temperature
+        units: degC
+        normal_range:
+          min: 20.0
+          max: 75.0
+      - id: speed_setpoint
+        name: Speed Setpoint
+        description: VFD speed setpoint as percentage of rated speed.
+        units: "%"
+        normal_range:
+          min: 40.0
+          max: 100.0
+        writable: true
+    fault_modes:
+      - id: bearing_wear
+        name: Bearing Wear
+        severity: warning
+        affected_attributes: [vibration, bearing_temp, motor_current]
+        description: >
+          Bearing wear presents as a gradual increase in vibration over hours to days.
+          Bearing temperature rises as friction increases. Motor current may increase
+          slightly. Common causes are inadequate lubrication, contamination, or
+          end-of-service-life.
+      - id: cavitation
+        name: Cavitation
+        severity: warning
+        affected_attributes: [discharge_pressure, vibration, motor_current]
+        description: >
+          Cavitation presents as erratic discharge pressure with high-frequency vibration.
+          Motor current becomes unstable. Common causes are insufficient suction head or
+          air entrainment in suction.
+      - id: seal_failure
+        name: Seal Failure
+        severity: critical
+        affected_attributes: [discharge_pressure, motor_current]
+        description: >
+          Seal failure presents as a sudden drop in discharge pressure accompanied by a
+          drop in motor current. Requires immediate shutdown.
+
+equipment_instances:
+  - id: raw_water_pump_1
+    name: Raw Water Pump 1
+    type_id: centrifugal_pump
+    process_area_id: intake
+    commissioned: "2019-03-15"
+    notes: Replaced impeller 2024-11-02 following cavitation damage. Running well since.
+    tag_bindings:
+      discharge_pressure: Plant/WTP/Pump/RawWater_P01/DischargePressure
+      motor_current: Plant/WTP/Pump/RawWater_P01/MotorCurrent
+      vibration: Plant/WTP/Pump/RawWater_P01/Vibration
+      bearing_temp: Plant/WTP/Pump/RawWater_P01/BearingTemp
+      speed_setpoint: Plant/WTP/Pump/RawWater_P01/SpeedSetpoint
+
+  - id: raw_water_pump_2
+    name: Raw Water Pump 2
+    type_id: centrifugal_pump
+    process_area_id: intake
+    commissioned: "2021-07-08"
+    tag_bindings:
+      discharge_pressure: Plant/WTP/Pump/RawWater_P02/DischargePressure
+      motor_current: Plant/WTP/Pump/RawWater_P02/MotorCurrent
+      vibration: Plant/WTP/Pump/RawWater_P02/Vibration
+      bearing_temp: Plant/WTP/Pump/RawWater_P02/BearingTemp
+      speed_setpoint: Plant/WTP/Pump/RawWater_P02/SpeedSetpoint
+
+  - id: high_service_pump_1
+    name: High Service Pump 1
+    type_id: centrifugal_pump
+    process_area_id: distribution
+    commissioned: "2020-05-20"
+    tag_bindings:
+      discharge_pressure: Plant/WTP/Pump/HighService_P01/DischargePressure
+      motor_current: Plant/WTP/Pump/HighService_P01/MotorCurrent
+      vibration: Plant/WTP/Pump/HighService_P01/Vibration
+      bearing_temp: Plant/WTP/Pump/HighService_P01/BearingTemp
+      speed_setpoint: Plant/WTP/Pump/HighService_P01/SpeedSetpoint
+
+historian:
+  default_lookback_hours: 24
+  max_lookback_days: 90
+  resolution_seconds: 60
