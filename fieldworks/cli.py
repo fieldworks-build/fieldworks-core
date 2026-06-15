@@ -44,6 +44,7 @@ def _run_validate(topology_path: Path, aggregator_path: Path | None) -> None:
     aggregator_names: set[str] | None = None
     if aggregator_path is not None:
         from fieldworks.aggregator.config import load_aggregator_config
+
         try:
             agg = load_aggregator_config(aggregator_path)
             aggregator_names = agg.server_names()
@@ -63,7 +64,11 @@ def _run_validate(topology_path: Path, aggregator_path: Path | None) -> None:
         type_count = len(topology.equipment_types)
         inst_count = len(topology.equipment_instances)
         warning_count = len(result.warnings)
-        warn_str = f" ({warning_count} warning{'s' if warning_count != 1 else ''})" if warning_count else ""
+        warn_str = (
+            f" ({warning_count} warning{'s' if warning_count != 1 else ''})"
+            if warning_count
+            else ""
+        )
         print(
             f"{topology_path}: valid — {area_count} process areas,"
             f" {type_count} equipment types, {inst_count} instances{warn_str}"

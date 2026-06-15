@@ -134,6 +134,7 @@ def build_orchestrator_system(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _binding_qualifier(binding: TagBinding) -> str:
     if binding.confidence == "verified" and not binding.notes:
         return ""

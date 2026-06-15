@@ -25,5 +25,8 @@ fieldworks = "fieldworks.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["fieldworks"]
 
+[tool.black]
+target-version = ["py311"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -6,10 +6,10 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, BeforeValidator, model_validator
 
-
 # ---------------------------------------------------------------------------
 # facility
 # ---------------------------------------------------------------------------
+
 
 class FacilityConfig(BaseModel):
     name: str
@@ -23,6 +23,7 @@ class FacilityConfig(BaseModel):
 # process_areas
 # ---------------------------------------------------------------------------
 
+
 class ProcessArea(BaseModel):
     id: str
     name: str
@@ -33,6 +34,7 @@ class ProcessArea(BaseModel):
 # ---------------------------------------------------------------------------
 # equipment_types — attributes
 # ---------------------------------------------------------------------------
+
 
 class NormalRange(BaseModel):
     min: float
@@ -61,6 +63,7 @@ class AttributeDef(BaseModel):
 # equipment_types — fault_modes
 # ---------------------------------------------------------------------------
 
+
 class FaultMode(BaseModel):
     id: str
     name: str
@@ -72,6 +75,7 @@ class FaultMode(BaseModel):
 # ---------------------------------------------------------------------------
 # equipment_types
 # ---------------------------------------------------------------------------
+
 
 class EquipmentType(BaseModel):
     id: str
@@ -96,6 +100,7 @@ class EquipmentType(BaseModel):
 # equipment_instances — tag bindings (simple string or expanded form)
 # ---------------------------------------------------------------------------
 
+
 class TagBinding(BaseModel):
     tag_id: str
     confidence: Literal["verified", "inferred", "suspect"] = "verified"
@@ -116,6 +121,7 @@ TagBindingValue = Annotated[TagBinding, BeforeValidator(_coerce_tag_binding)]
 # equipment_instances
 # ---------------------------------------------------------------------------
 
+
 class EquipmentInstance(BaseModel):
     id: str
     name: str
@@ -131,6 +137,7 @@ class EquipmentInstance(BaseModel):
 # historian
 # ---------------------------------------------------------------------------
 
+
 class HistorianConfig(BaseModel):
     default_lookback_hours: int
     max_lookback_days: int
@@ -141,6 +148,7 @@ class HistorianConfig(BaseModel):
 # ---------------------------------------------------------------------------
 # TopologyConfig — root model with cross-reference validation
 # ---------------------------------------------------------------------------
+
 
 class TopologyConfig(BaseModel):
     facility: FacilityConfig

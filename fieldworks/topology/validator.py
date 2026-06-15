@@ -29,7 +29,9 @@ class ValidationResult:
         return self.valid
 
 
-def validate(topology: TopologyConfig, aggregator_server_names: set[str] | None = None) -> ValidationResult:
+def validate(
+    topology: TopologyConfig, aggregator_server_names: set[str] | None = None
+) -> ValidationResult:
     """Run soft validation against an already-loaded TopologyConfig.
 
     Args:

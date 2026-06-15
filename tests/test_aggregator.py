@@ -8,6 +8,7 @@ import pytest
 
 def test_load_valid_aggregator(wtp_aggregator):
     from fieldworks.aggregator.config import AggregatorConfig
+
     assert isinstance(wtp_aggregator, AggregatorConfig)
     assert len(wtp_aggregator.servers) == 3
 
@@ -42,12 +43,14 @@ def test_aggregator_default_timeout(wtp_aggregator):
 
 def test_load_file_not_found():
     from fieldworks.aggregator.config import load_aggregator_config
+
     with pytest.raises(FileNotFoundError):
         load_aggregator_config("/nonexistent/aggregator.json")
 
 
 def test_load_not_an_array(tmp_path):
     from fieldworks.aggregator.config import load_aggregator_config
+
     p = tmp_path / "agg.json"
     p.write_text(json.dumps({"servers": []}))
     with pytest.raises(ValueError, match="array"):
@@ -56,6 +59,7 @@ def test_load_not_an_array(tmp_path):
 
 def test_load_missing_required_field(tmp_path):
     from fieldworks.aggregator.config import load_aggregator_config
+
     p = tmp_path / "agg.json"
     p.write_text(json.dumps([{"name": "mqtt"}]))  # missing url
     with pytest.raises(ValueError, match="Invalid aggregator"):
@@ -64,6 +68,7 @@ def test_load_missing_required_field(tmp_path):
 
 def test_load_minimal_server(tmp_path):
     from fieldworks.aggregator.config import load_aggregator_config
+
     p = tmp_path / "agg.json"
     p.write_text(json.dumps([{"name": "mqtt", "url": "http://localhost:8001/sse"}]))
     config = load_aggregator_config(p)

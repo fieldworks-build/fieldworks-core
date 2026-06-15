@@ -66,6 +66,7 @@ def base_topology() -> dict:
 
 def test_load_valid_fixture(wtp_topology):
     from fieldworks.topology.schema import TopologyConfig
+
     assert isinstance(wtp_topology, TopologyConfig)
     assert wtp_topology.facility.name == "Riverside Water Treatment Plant"
     assert wtp_topology.facility.site_id == "wtp-riverside-01"
@@ -104,6 +105,7 @@ def test_load_instances(wtp_topology):
 
 def test_tag_binding_string_coerced_to_binding(wtp_topology):
     from fieldworks.topology.schema import TagBinding
+
     inst = wtp_topology.equipment_instances[0]
     binding = inst.tag_bindings["discharge_pressure"]
     assert isinstance(binding, TagBinding)
@@ -118,12 +120,14 @@ def test_load_historian(wtp_topology):
 
 def test_load_file_not_found():
     from fieldworks.topology.loader import load
+
     with pytest.raises(FileNotFoundError):
         load("/nonexistent/path/topology.yaml")
 
 
 def test_load_not_a_mapping(tmp_path):
     from fieldworks.topology.loader import load
+
     p = tmp_path / "bad.yaml"
     p.write_text("- just a list\n")
     with pytest.raises(ValueError, match="mapping"):
@@ -132,6 +136,7 @@ def test_load_not_a_mapping(tmp_path):
 
 def test_load_missing_required_field(tmp_path):
     from fieldworks.topology.loader import load
+
     data = base_topology()
     del data["facility"]["timezone"]
     p = write_yaml(tmp_path, data)
@@ -141,6 +146,7 @@ def test_load_missing_required_field(tmp_path):
 
 def test_load_unknown_type_id(tmp_path):
     from fieldworks.topology.loader import load
+
     data = base_topology()
     data["equipment_instances"][0]["type_id"] = "nonexistent_type"
     p = write_yaml(tmp_path, data)
@@ -150,6 +156,7 @@ def test_load_unknown_type_id(tmp_path):
 
 def test_load_unknown_process_area_id(tmp_path):
     from fieldworks.topology.loader import load
+
     data = base_topology()
     data["equipment_instances"][0]["process_area_id"] = "nonexistent_area"
     p = write_yaml(tmp_path, data)
@@ -159,6 +166,7 @@ def test_load_unknown_process_area_id(tmp_path):
 
 def test_load_invalid_fault_severity(tmp_path):
     from fieldworks.topology.loader import load
+
     data = base_topology()
     data["equipment_types"][0]["fault_modes"][0]["severity"] = "extreme"
     p = write_yaml(tmp_path, data)
@@ -168,8 +176,11 @@ def test_load_invalid_fault_severity(tmp_path):
 
 def test_load_fault_references_unknown_attribute(tmp_path):
     from fieldworks.topology.loader import load
+
     data = base_topology()
-    data["equipment_types"][0]["fault_modes"][0]["affected_attributes"] = ["no_such_attr"]
+    data["equipment_types"][0]["fault_modes"][0]["affected_attributes"] = [
+        "no_such_attr"
+    ]
     p = write_yaml(tmp_path, data)
     with pytest.raises(ValueError, match="unknown attribute"):
         load(p)
@@ -177,8 +188,12 @@ def test_load_fault_references_unknown_attribute(tmp_path):
 
 def test_load_normal_range_min_gte_max(tmp_path):
     from fieldworks.topology.loader import load
+
     data = base_topology()
-    data["equipment_types"][0]["attributes"][0]["normal_range"] = {"min": 5.0, "max": 1.0}
+    data["equipment_types"][0]["attributes"][0]["normal_range"] = {
+        "min": 5.0,
+        "max": 1.0,
+    }
     p = write_yaml(tmp_path, data)
     with pytest.raises(ValueError, match="Invalid topology"):
         load(p)

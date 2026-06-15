@@ -13,6 +13,7 @@ def write_yaml(tmp_path: Path, data: dict) -> Path:
 
 def test_valid_topology_no_warnings(wtp_topology):
     from fieldworks.topology.validator import validate
+
     result = validate(wtp_topology)
     assert result.valid
     assert result.warnings == []
@@ -31,10 +32,18 @@ def test_missing_tag_binding_produces_warning(tmp_path):
                 "name": "Pump",
                 "description": "A pump.",
                 "attributes": [
-                    {"id": "pressure", "name": "Pressure", "units": "bar",
-                     "normal_range": {"min": 1.0, "max": 5.0}},
-                    {"id": "temp", "name": "Temperature", "units": "degC",
-                     "normal_range": {"min": 10.0, "max": 80.0}},
+                    {
+                        "id": "pressure",
+                        "name": "Pressure",
+                        "units": "bar",
+                        "normal_range": {"min": 1.0, "max": 5.0},
+                    },
+                    {
+                        "id": "temp",
+                        "name": "Temperature",
+                        "units": "degC",
+                        "normal_range": {"min": 10.0, "max": 80.0},
+                    },
                 ],
                 "fault_modes": [],
             }
@@ -64,6 +73,7 @@ def test_missing_tag_binding_produces_warning(tmp_path):
 
 def test_historian_source_valid(wtp_topology):
     from fieldworks.topology.validator import validate
+
     result = validate(wtp_topology, aggregator_server_names={"mqtt_intake", "influxdb"})
     assert result.valid
 
@@ -81,8 +91,12 @@ def test_historian_source_unknown_server(tmp_path):
                 "name": "Pump",
                 "description": "A pump.",
                 "attributes": [
-                    {"id": "pressure", "name": "Pressure", "units": "bar",
-                     "normal_range": {"min": 1.0, "max": 5.0}},
+                    {
+                        "id": "pressure",
+                        "name": "Pressure",
+                        "units": "bar",
+                        "normal_range": {"min": 1.0, "max": 5.0},
+                    },
                 ],
                 "fault_modes": [],
             }
@@ -123,8 +137,12 @@ def test_no_aggregator_skips_historian_check(tmp_path):
                 "name": "Pump",
                 "description": "A pump.",
                 "attributes": [
-                    {"id": "pressure", "name": "Pressure", "units": "bar",
-                     "normal_range": {"min": 1.0, "max": 5.0}},
+                    {
+                        "id": "pressure",
+                        "name": "Pressure",
+                        "units": "bar",
+                        "normal_range": {"min": 1.0, "max": 5.0},
+                    },
                 ],
                 "fault_modes": [],
             }

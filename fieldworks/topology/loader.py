@@ -19,7 +19,9 @@ def load(path: str | Path) -> TopologyConfig:
     with open(p) as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
-        raise ValueError(f"topology.yaml must be a YAML mapping, got {type(data).__name__}")
+        raise ValueError(
+            f"topology.yaml must be a YAML mapping, got {type(data).__name__}"
+        )
     try:
         return TopologyConfig.model_validate(data)
     except ValidationError as exc:
