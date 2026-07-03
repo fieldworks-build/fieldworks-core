@@ -18,6 +18,12 @@ dependencies = [
 dev = [
     "pytest>=8.0",
 ]
+memory = [
+    "ladybug",
+    "duckdb",
+    "influxdb-client",
+    "pytz",
+]
 
 [project.scripts]
 fieldworks = "fieldworks.cli:main"
