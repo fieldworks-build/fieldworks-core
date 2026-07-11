@@ -72,6 +72,51 @@ def test_prompt_extra_context_injected(wtp_topology):
     assert "High turbidity season." in prompt
 
 
+def test_prompt_without_memory_client_unchanged(wtp_topology):
+    """v0.1 callers that never pass memory_client see identical behavior."""
+    from fieldworks.agents.specialist import build_specialist_prompt
+
+    prompt = build_specialist_prompt("intake", wtp_topology)
+    assert "Accumulated knowledge" not in prompt
+    assert "Recent incident history" not in prompt
+
+
+def test_prompt_memory_client_injects_context(wtp_topology, graph_client, tmp_path):
+    from fieldworks.agents.specialist import build_specialist_prompt
+    from fieldworks.memory.client import MemoryClient
+    from fieldworks.memory.specialist import SpecialistMemory
+
+    memory_client = MemoryClient(
+        graph=graph_client,
+        specialist_memory=SpecialistMemory(tmp_path / "specialist-memory"),
+    )
+    memory_client.specialist_memory.append(
+        "intake", "Raw Water Pump 1 seal replaced 2026-05."
+    )
+
+    prompt = build_specialist_prompt(
+        "intake", wtp_topology, memory_client=memory_client
+    )
+    assert "Raw Water Pump 1 seal replaced 2026-05." in prompt
+
+
+def test_prompt_memory_client_no_data_omits_section(
+    wtp_topology, graph_client, tmp_path
+):
+    from fieldworks.agents.specialist import build_specialist_prompt
+    from fieldworks.memory.client import MemoryClient
+    from fieldworks.memory.specialist import SpecialistMemory
+
+    memory_client = MemoryClient(
+        graph=graph_client,
+        specialist_memory=SpecialistMemory(tmp_path / "specialist-memory"),
+    )
+    prompt = build_specialist_prompt(
+        "intake", wtp_topology, memory_client=memory_client
+    )
+    assert "Accumulated knowledge" not in prompt
+
+
 def test_build_specialists_one_per_area(wtp_topology):
     from fieldworks.agents.specialist import build_specialists
 

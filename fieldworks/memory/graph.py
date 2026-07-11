@@ -227,6 +227,15 @@ class GraphClient:
 
     # ── Write ─────────────────────────────────────────────────────────────
 
+    def execute_write(
+        self, cypher: str, parameters: dict[str, Any] | None = None
+    ) -> list[dict]:
+        """Unguarded write escape hatch for framework-internal callers (e.g. the
+        topology seeder). Unlike query_graph(), this permits CREATE/MERGE/etc.
+        """
+        conn = self._get_conn()
+        return list(conn.execute(cypher, parameters).rows_as_dict())
+
     def record_incident(
         self,
         session_id: str,

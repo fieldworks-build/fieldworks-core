@@ -7,7 +7,12 @@ existing call signature.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fieldworks.topology.schema import EquipmentInstance, TagBinding, TopologyConfig
+
+if TYPE_CHECKING:
+    from fieldworks.memory.client import MemoryClient
 
 
 def build_specialist_prompt(
@@ -15,6 +20,7 @@ def build_specialist_prompt(
     topology: TopologyConfig,
     *,
     extra_context: str | None = None,
+    memory_client: "MemoryClient | None" = None,
 ) -> str:
     """Return the system prompt for the Specialist agent responsible for area_id.
 
@@ -22,7 +28,9 @@ def build_specialist_prompt(
         area_id: The process area ID (matches process_areas[].id in topology.yaml).
         topology: Loaded and validated TopologyConfig.
         extra_context: Optional additional context injected after the area description.
-            In v0.2 this will be populated from LadybugDB memory.
+        memory_client: Optional MemoryClient. When given, accumulated specialist
+            memory and recent incident history for this area are prepended
+            ahead of extra_context. None preserves v0.1 behavior.
 
     Returns:
         A fully rendered system prompt string.
@@ -39,6 +47,11 @@ def build_specialist_prompt(
 
     if area.specialist_prompt:
         lines += ["", area.specialist_prompt]
+
+    if memory_client is not None:
+        memory_context = memory_client.get_context(area_id, [i.id for i in instances])
+        if memory_context:
+            lines += ["", memory_context]
 
     if extra_context:
         lines += ["", extra_context]

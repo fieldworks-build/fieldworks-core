@@ -1,4 +1,4 @@
-"""fieldworks CLI — fieldworks validate topology.yaml [--aggregator aggregator.json]"""
+"""fieldworks CLI — fieldworks validate topology.yaml [--aggregator aggregator.json] [--seed]"""
 
 from __future__ import annotations
 
@@ -13,11 +13,15 @@ def main() -> None:
 
     topology_path: Path | None = None
     aggregator_path: Path | None = None
+    seed = False
     i = 1
     while i < len(args):
         if args[i] == "--aggregator" and i + 1 < len(args):
             aggregator_path = Path(args[i + 1])
             i += 2
+        elif args[i] == "--seed":
+            seed = True
+            i += 1
         else:
             topology_path = Path(args[i])
             i += 1
@@ -25,10 +29,12 @@ def main() -> None:
     if topology_path is None:
         _usage()
 
-    _run_validate(topology_path, aggregator_path)
+    _run_validate(topology_path, aggregator_path, seed)
 
 
-def _run_validate(topology_path: Path, aggregator_path: Path | None) -> None:
+def _run_validate(
+    topology_path: Path, aggregator_path: Path | None, seed: bool
+) -> None:
     from fieldworks.topology.loader import load
     from fieldworks.topology.validator import validate
 
@@ -76,10 +82,45 @@ def _run_validate(topology_path: Path, aggregator_path: Path | None) -> None:
     else:
         sys.exit(1)
 
+    if seed:
+        _run_seed(topology)
+
+
+def _run_seed(topology) -> None:
+    try:
+        import tempfile
+
+        from fieldworks.memory.graph import GraphClient, GraphConfig
+        from fieldworks.topology.seeder import seed_topology
+    except ImportError:
+        print(
+            "error: --seed requires the memory extra: pip install fieldworks-core[memory]",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        client = GraphClient(GraphConfig(db_path=Path(tmp) / "seed-check.db"))
+        try:
+            counts = seed_topology(topology, client)
+        except Exception as exc:
+            print(f"error: seeding failed: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+    print(
+        "seed check ok — "
+        f"{counts['process_areas']} process areas, "
+        f"{counts['equipment_types']} equipment types, "
+        f"{counts['attributes']} attributes, "
+        f"{counts['fault_modes']} fault modes, "
+        f"{counts['equipment_instances']} equipment instances, "
+        f"{counts['tag_bindings']} tag bindings"
+    )
+
 
 def _usage() -> None:
     print(
-        "usage: fieldworks validate topology.yaml [--aggregator aggregator.json]",
+        "usage: fieldworks validate topology.yaml [--aggregator aggregator.json] [--seed]",
         file=sys.stderr,
     )
     sys.exit(1)
