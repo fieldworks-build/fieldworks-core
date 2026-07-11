@@ -1,5 +1,5 @@
 from .loader import load
-from .seeder import seed_topology
+from .seeder import attr_node_id, seed_topology
 from .validator import validate, ValidationResult
 from .schema import (
     TopologyConfig,
@@ -15,6 +15,7 @@ from .schema import (
 
 __all__ = [
     "load",
+    "attr_node_id",
     "seed_topology",
     "validate",
     "ValidationResult",

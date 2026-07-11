@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from fieldworks.memory.graph import GraphClient
 
 
-def _attr_node_id(type_id: str, attr_id: str) -> str:
+def attr_node_id(type_id: str, attr_id: str) -> str:
     return f"{type_id}::{attr_id}"
 
 
@@ -101,7 +101,7 @@ def seed_topology(topology: TopologyConfig, graph_client: "GraphClient") -> dict
         counts["equipment_types"] += 1
 
         for attr in eq_type.attributes:
-            attr_node_id = _attr_node_id(eq_type.id, attr.id)
+            attr_nid = attr_node_id(eq_type.id, attr.id)
             graph_client.execute_write(
                 """
                 CREATE (:Attribute {
@@ -112,7 +112,7 @@ def seed_topology(topology: TopologyConfig, graph_client: "GraphClient") -> dict
                 })
                 """,
                 {
-                    "id": attr_node_id,
+                    "id": attr_nid,
                     "name": attr.name,
                     "description": attr.description or "",
                     "units": attr.units,
@@ -127,7 +127,7 @@ def seed_topology(topology: TopologyConfig, graph_client: "GraphClient") -> dict
                 MATCH (t:EquipmentType {id: $type_id}), (a:Attribute {id: $attr_id})
                 CREATE (t)-[:DEFINES_ATTRIBUTE]->(a)
                 """,
-                {"type_id": eq_type.id, "attr_id": attr_node_id},
+                {"type_id": eq_type.id, "attr_id": attr_nid},
             )
             counts["attributes"] += 1
 
@@ -161,7 +161,7 @@ def seed_topology(topology: TopologyConfig, graph_client: "GraphClient") -> dict
                     """,
                     {
                         "fault_id": fault_node_id,
-                        "attr_id": _attr_node_id(eq_type.id, attr_id),
+                        "attr_id": attr_node_id(eq_type.id, attr_id),
                     },
                 )
             counts["fault_modes"] += 1
@@ -200,7 +200,7 @@ def seed_topology(topology: TopologyConfig, graph_client: "GraphClient") -> dict
 
         for attr_key, binding in inst.tag_bindings.items():
             bind_node_id = _binding_node_id(inst.id, attr_key)
-            attr_node_id = _attr_node_id(inst.type_id, attr_key)
+            attr_nid = attr_node_id(inst.type_id, attr_key)
             graph_client.execute_write(
                 """
                 CREATE (:TagBinding {
@@ -222,7 +222,7 @@ def seed_topology(topology: TopologyConfig, graph_client: "GraphClient") -> dict
                 {
                     "inst_id": inst.id,
                     "bind_id": bind_node_id,
-                    "attr_id": attr_node_id,
+                    "attr_id": attr_nid,
                 },
             )
             graph_client.execute_write(
@@ -230,7 +230,7 @@ def seed_topology(topology: TopologyConfig, graph_client: "GraphClient") -> dict
                 MATCH (tb:TagBinding {id: $bind_id}), (a:Attribute {id: $attr_id})
                 CREATE (tb)-[:BINDING_OF]->(a)
                 """,
-                {"bind_id": bind_node_id, "attr_id": attr_node_id},
+                {"bind_id": bind_node_id, "attr_id": attr_nid},
             )
             counts["tag_bindings"] += 1
 

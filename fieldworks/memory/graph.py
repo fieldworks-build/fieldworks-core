@@ -25,6 +25,10 @@ import ladybug as lb
 
 _PACKAGED_SCHEMA_PATH = Path(__file__).parent / "schema.cypher"
 
+# ISA-18.2 three-tier vocabulary — see fieldworks.agents.deadband.SEVERITY_TIERS.
+# Highest tier wins when multiple FaultModes affect the same attribute.
+_SEVERITY_RANK = {"advisory": 0, "warning": 1, "critical": 2}
+
 
 @dataclass
 class GraphConfig:
@@ -211,6 +215,30 @@ class GraphClient:
                    a.write_limit_max AS write_limit_max
         """)
         return list(result.rows_as_dict())
+
+    def get_severity_for_attribute(self, type_id: str, attr_id: str) -> str | None:
+        """Runtime severity lookup for a (equipment type, attribute) pair, via
+        FaultMode.severity on the graph — replaces static alarm_lo/alarm_hi
+        config, so severity is adjustable without a process restart.
+
+        Returns the highest-severity FaultMode affecting this attribute, or
+        None if no FaultMode affects it.
+        """
+        from fieldworks.topology.seeder import attr_node_id
+
+        conn = self._get_conn()
+        result = conn.execute(
+            """
+            MATCH (t:EquipmentType {id: $type_id})-[:HAS_FAULT_MODE]->(fm:FaultMode)
+                  -[:AFFECTS]->(a:Attribute {id: $attr_node_id})
+            RETURN fm.severity AS severity
+            """,
+            {"type_id": type_id, "attr_node_id": attr_node_id(type_id, attr_id)},
+        )
+        severities = [r["severity"] for r in result.rows_as_dict()]
+        if not severities:
+            return None
+        return max(severities, key=lambda s: _SEVERITY_RANK.get(s, -1))
 
     def query_graph(
         self, cypher: str, parameters: dict[str, Any] | None = None
