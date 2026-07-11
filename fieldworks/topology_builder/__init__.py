@@ -1,2 +1,9 @@
-# Reserved — topology builder lives in fieldworks/topology-builder/; this namespace
-# is a placeholder for cross-cutting imports when that component is extracted.
+from .discovery import crawl_mqtt, crawl_opcua
+from .inference import infer_topology, load_template
+
+__all__ = [
+    "crawl_mqtt",
+    "crawl_opcua",
+    "infer_topology",
+    "load_template",
+]

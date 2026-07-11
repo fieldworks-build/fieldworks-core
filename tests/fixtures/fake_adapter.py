@@ -82,6 +82,53 @@ async def call_tool(name: str, arguments: dict):
             del info["capabilities"]  # trips the response-shape check
         return _result(info)
 
+    if name == "get_topic_tree":
+        # Real shape (mqtt-mcp's build_topic_tree): no "children" wrapper —
+        # each level is either a leaf dict (has "tag_id") or a plain map of
+        # further segments.
+        return _result(
+            {
+                "Plant": {
+                    "WTP": {
+                        "Pump": {
+                            "RawWater_01": {
+                                "Flow": {"tag_id": "Plant/WTP/Pump/RawWater_01/Flow"},
+                                "Running": {
+                                    "tag_id": "Plant/WTP/Pump/RawWater_01/Running"
+                                },
+                            }
+                        }
+                    }
+                }
+            }
+        )
+
+    if name == "get_node_tree":
+        return _result(
+            {
+                "Plant": {
+                    "node_id": "ns=2;s=Plant",
+                    "node_class": "Object",
+                    "children": {
+                        "Pump": {
+                            "node_id": "ns=2;s=Plant.Pump",
+                            "node_class": "Object",
+                            "children": {
+                                "Flow": {
+                                    "node_id": "ns=2;s=Plant.Pump.Flow",
+                                    "node_class": "Variable",
+                                },
+                                "Running": {
+                                    "node_id": "ns=2;s=Plant.Pump.Running",
+                                    "node_class": "Variable",
+                                },
+                            },
+                        }
+                    },
+                }
+            }
+        )
+
     if name == "read_tag":
         code = "SOMETHING_ELSE" if MODE == "broken" else "TAG_NOT_FOUND"
         return _result(
