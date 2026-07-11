@@ -24,6 +24,9 @@ memory = [
     "influxdb-client",
     "pytz",
 ]
+adapters = [
+    "mcp>=1.0",
+]
 
 [project.scripts]
 fieldworks = "fieldworks.cli:main"

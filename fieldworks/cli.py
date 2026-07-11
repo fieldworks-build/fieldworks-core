@@ -1,4 +1,8 @@
-"""fieldworks CLI — fieldworks validate topology.yaml [--aggregator aggregator.json] [--seed]"""
+"""fieldworks CLI
+
+fieldworks validate topology.yaml [--aggregator aggregator.json] [--seed]
+fieldworks test-adapter --command "<binary> [args...]" [--host HOST] [--port PORT]
+"""
 
 from __future__ import annotations
 
@@ -8,13 +12,23 @@ from pathlib import Path
 
 def main() -> None:
     args = sys.argv[1:]
-    if not args or args[0] != "validate":
+    if not args:
         _usage()
 
+    subcommand, rest = args[0], args[1:]
+    if subcommand == "validate":
+        _main_validate(rest)
+    elif subcommand == "test-adapter":
+        _main_test_adapter(rest)
+    else:
+        _usage()
+
+
+def _main_validate(args: list[str]) -> None:
     topology_path: Path | None = None
     aggregator_path: Path | None = None
     seed = False
-    i = 1
+    i = 0
     while i < len(args):
         if args[i] == "--aggregator" and i + 1 < len(args):
             aggregator_path = Path(args[i + 1])
@@ -118,9 +132,65 @@ def _run_seed(topology) -> None:
     )
 
 
+def _main_test_adapter(args: list[str]) -> None:
+    command: str | None = None
+    host: str | None = None
+    port: int | None = None
+    i = 0
+    while i < len(args):
+        if args[i] == "--command" and i + 1 < len(args):
+            command = args[i + 1]
+            i += 2
+        elif args[i] == "--host" and i + 1 < len(args):
+            host = args[i + 1]
+            i += 2
+        elif args[i] == "--port" and i + 1 < len(args):
+            port = int(args[i + 1])
+            i += 2
+        else:
+            i += 1
+
+    if command is None:
+        _usage()
+
+    _run_test_adapter(command, host, port)
+
+
+def _run_test_adapter(command: str, host: str | None, port: int | None) -> None:
+    try:
+        import asyncio
+        import shlex
+
+        from fieldworks.adapters.conformance import run_conformance
+    except ImportError:
+        print(
+            "error: test-adapter requires the adapters extra:"
+            " pip install fieldworks-core[adapters]",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    parts = shlex.split(command)
+    binary, binary_args = parts[0], parts[1:]
+
+    report = asyncio.run(
+        run_conformance(binary, binary_args, connect_host=host, connect_port=port)
+    )
+
+    for check in report.checks:
+        status = "SKIP" if check.skipped else ("PASS" if check.passed else "FAIL")
+        suffix = f" — {check.message}" if check.message else ""
+        print(f"[{status}] {check.name}{suffix}")
+
+    if not report.passed:
+        sys.exit(1)
+
+
 def _usage() -> None:
     print(
-        "usage: fieldworks validate topology.yaml [--aggregator aggregator.json] [--seed]",
+        "usage: fieldworks validate topology.yaml [--aggregator aggregator.json] [--seed]\n"
+        '       fieldworks test-adapter --command "<binary> [args...]"'
+        " [--host HOST] [--port PORT]",
         file=sys.stderr,
     )
     sys.exit(1)
