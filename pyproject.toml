@@ -31,8 +31,8 @@ adapters = [
 [project.scripts]
 fieldworks = "fieldworks.cli:main"
 
-[tool.hatch.build.targets.wheel]
-packages = ["fieldworks"]
+[tool.setuptools.package-data]
+"fieldworks.memory" = ["schema.cypher"]
 
 [tool.black]
 target-version = ["py311"]
