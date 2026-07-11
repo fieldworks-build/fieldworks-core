@@ -113,6 +113,11 @@ class FaultMode(BaseModel):
     description: str
     severity: Literal["advisory", "warning", "critical"]
     affected_attributes: list[str]
+    # Alarm direction this fault mode applies to. "either" (default) means the
+    # severity applies regardless of excursion direction — most fault modes
+    # are symmetric, but e.g. a pump running low on flow (cavitation risk) is
+    # often a different severity than the same pump flowing too high.
+    direction: Literal["below_min", "above_max", "either"] = "either"
 
 
 # ---------------------------------------------------------------------------

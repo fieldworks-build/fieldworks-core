@@ -80,7 +80,8 @@ CREATE NODE TABLE FaultMode (
     id          STRING PRIMARY KEY,
     name        STRING,
     description STRING,
-    severity    STRING    // advisory | warning | critical
+    severity    STRING,   // advisory | warning | critical
+    direction   STRING    // below_min | above_max | either — see FaultMode.direction
 );
 
 // ── DYNAMIC / LEARNED LAYER ───────────────────────────────────

@@ -152,7 +152,8 @@ def seed_topology(topology: TopologyConfig, graph_client: "GraphClient") -> dict
             graph_client.execute_write(
                 """
                 CREATE (:FaultMode {
-                    id: $id, name: $name, description: $description, severity: $severity
+                    id: $id, name: $name, description: $description,
+                    severity: $severity, direction: $direction
                 })
                 """,
                 {
@@ -160,6 +161,7 @@ def seed_topology(topology: TopologyConfig, graph_client: "GraphClient") -> dict
                     "name": fault.name,
                     "description": fault.description,
                     "severity": fault.severity,
+                    "direction": fault.direction,
                 },
             )
             graph_client.execute_write(

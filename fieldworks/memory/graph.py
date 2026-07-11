@@ -218,13 +218,23 @@ class GraphClient:
         """)
         return list(result.rows_as_dict())
 
-    def get_severity_for_attribute(self, type_id: str, attr_id: str) -> str | None:
+    def get_severity_for_attribute(
+        self,
+        type_id: str,
+        attr_id: str,
+        condition: str | None = None,
+    ) -> str | None:
         """Runtime severity lookup for a (equipment type, attribute) pair, via
         FaultMode.severity on the graph — replaces static alarm_lo/alarm_hi
         config, so severity is adjustable without a process restart.
 
-        Returns the highest-severity FaultMode affecting this attribute, or
-        None if no FaultMode affects it.
+        condition: "below_min" | "above_max" | None. When given, only
+        FaultModes whose direction matches (or is "either") are considered —
+        alarm severity is often asymmetric (e.g. a pump running low on flow
+        may be critical while running high is merely advisory). None
+        considers all FaultModes regardless of direction.
+
+        Returns the highest-severity matching FaultMode, or None if none match.
         """
         from fieldworks.topology.seeder import attr_node_id
 
@@ -233,11 +243,15 @@ class GraphClient:
             """
             MATCH (t:EquipmentType {id: $type_id})-[:HAS_FAULT_MODE]->(fm:FaultMode)
                   -[:AFFECTS]->(a:Attribute {id: $attr_node_id})
-            RETURN fm.severity AS severity
+            RETURN fm.severity AS severity, fm.direction AS direction
             """,
             {"type_id": type_id, "attr_node_id": attr_node_id(type_id, attr_id)},
         )
-        severities = [r["severity"] for r in result.rows_as_dict()]
+        severities = [
+            r["severity"]
+            for r in result.rows_as_dict()
+            if condition is None or r["direction"] in ("either", condition)
+        ]
         if not severities:
             return None
         return max(severities, key=lambda s: _SEVERITY_RANK.get(s, -1))
