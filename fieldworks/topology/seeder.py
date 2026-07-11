@@ -106,8 +106,12 @@ def seed_topology(topology: TopologyConfig, graph_client: "GraphClient") -> dict
                 """
                 CREATE (:Attribute {
                     id: $id, name: $name, description: $description, units: $units,
+                    data_type: $data_type,
                     normal_range_min: $normal_range_min, normal_range_max: $normal_range_max,
-                    normal_range_desc: $normal_range_desc, writable: $writable,
+                    normal_range_desc: $normal_range_desc,
+                    normal_state: $normal_state,
+                    allowed_values: $allowed_values, normal_values: $normal_values,
+                    writable: $writable,
                     requires_confirmation: false, write_limit_min: 0.0, write_limit_max: 0.0
                 })
                 """,
@@ -116,9 +120,21 @@ def seed_topology(topology: TopologyConfig, graph_client: "GraphClient") -> dict
                     "name": attr.name,
                     "description": attr.description or "",
                     "units": attr.units,
-                    "normal_range_min": attr.normal_range.min,
-                    "normal_range_max": attr.normal_range.max,
-                    "normal_range_desc": attr.normal_range.description or "",
+                    "data_type": attr.data_type,
+                    "normal_range_min": (
+                        attr.normal_range.min if attr.normal_range else None
+                    ),
+                    "normal_range_max": (
+                        attr.normal_range.max if attr.normal_range else None
+                    ),
+                    "normal_range_desc": (
+                        (attr.normal_range.description or "")
+                        if attr.normal_range
+                        else ""
+                    ),
+                    "normal_state": attr.normal_state,
+                    "allowed_values": attr.allowed_values,
+                    "normal_values": attr.normal_values,
                     "writable": attr.writable,
                 },
             )

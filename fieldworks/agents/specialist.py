@@ -76,9 +76,10 @@ def build_specialist_prompt(
             else:
                 qualifier = _binding_qualifier(binding)
                 writable_note = " (writable)" if attr.writable else ""
+                units_part = f" ({attr.units})" if attr.units else ""
                 lines.append(
-                    f"  - {attr.name} ({attr.units}){writable_note}:"
-                    f" normal {attr.normal_range.min}–{attr.normal_range.max}{qualifier}"
+                    f"  - {attr.name}{units_part}{writable_note}:"
+                    f" {_normal_state_desc(attr)}{qualifier}"
                 )
         lines.append("")
 
@@ -146,6 +147,17 @@ def build_orchestrator_system(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _normal_state_desc(attr) -> str:
+    if attr.data_type == "boolean":
+        return f"normal state: {'true' if attr.normal_state else 'false'}"
+    if attr.data_type == "discrete":
+        return (
+            f"normal state(s): {', '.join(attr.normal_values)}"
+            f" (allowed: {', '.join(attr.allowed_values)})"
+        )
+    return f"normal {attr.normal_range.min}–{attr.normal_range.max}"
 
 
 def _binding_qualifier(binding: TagBinding) -> str:

@@ -54,9 +54,13 @@ CREATE NODE TABLE Attribute (
     name                STRING,
     description         STRING,
     units               STRING,
-    normal_range_min    DOUBLE,
-    normal_range_max    DOUBLE,
-    normal_range_desc   STRING,
+    data_type           STRING,      // numeric | boolean | discrete — see AttributeDef
+    normal_range_min    DOUBLE,       // numeric only
+    normal_range_max    DOUBLE,       // numeric only
+    normal_range_desc   STRING,       // numeric only
+    normal_state        BOOLEAN,      // boolean only — expected steady-state value
+    allowed_values      STRING[],     // discrete only
+    normal_values       STRING[],     // discrete only — subset of allowed_values, not alarming
     writable            BOOLEAN,
     requires_confirmation BOOLEAN,   // True = operator approval required before write
     write_limit_min     DOUBLE,      // Hard lower bound enforced by control-mcp

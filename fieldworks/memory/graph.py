@@ -149,8 +149,10 @@ class GraphClient:
             RETURN
                 area.name AS process_area, area.specialist_prompt AS area_context,
                 e.name AS equipment, e.notes AS equipment_notes, t.name AS equipment_type,
-                attr.name AS attribute, attr.units AS units,
+                attr.name AS attribute, attr.units AS units, attr.data_type AS data_type,
                 attr.normal_range_min AS normal_min, attr.normal_range_max AS normal_max,
+                attr.normal_state AS normal_state,
+                attr.allowed_values AS allowed_values, attr.normal_values AS normal_values,
                 b.tag_id AS tag_id, b.confidence AS binding_confidence,
                 fm.name AS fault_mode, fm.severity AS fault_severity,
                 fm.description AS fault_description
@@ -566,8 +568,12 @@ def aggregate_specialist_query(rows: list[dict]) -> dict:
         if row["attribute"]:
             equipment[eq]["attributes"][row["attribute"]] = {
                 "units": row["units"],
+                "data_type": row["data_type"],
                 "normal_min": row["normal_min"],
                 "normal_max": row["normal_max"],
+                "normal_state": row["normal_state"],
+                "allowed_values": row["allowed_values"],
+                "normal_values": row["normal_values"],
                 "tag_id": row["tag_id"],
                 "confidence": row["binding_confidence"],
             }
