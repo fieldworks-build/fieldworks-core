@@ -104,30 +104,33 @@ async def call_tool(name: str, arguments: dict):
         )
 
     if name == "get_node_tree":
-        return _result(
-            {
-                "Plant": {
-                    "node_id": "ns=2;s=Plant",
-                    "node_class": "Object",
-                    "children": {
-                        "Pump": {
-                            "node_id": "ns=2;s=Plant.Pump",
-                            "node_class": "Object",
-                            "children": {
-                                "Flow": {
-                                    "node_id": "ns=2;s=Plant.Pump.Flow",
-                                    "node_class": "Variable",
-                                },
-                                "Running": {
-                                    "node_id": "ns=2;s=Plant.Pump.Running",
-                                    "node_class": "Variable",
-                                },
+        # Real opcua-mcp wraps the tree in {"tree": ..., "node_count": ...,
+        # "truncated": ...} (fieldworks-adapters/opcua-mcp/src/server.rs) — this
+        # fixture used to return the tree bare, which masked a real unwrapping
+        # bug in crawl_opcua (fieldworks-core, fixed alongside this fixture).
+        tree = {
+            "Plant": {
+                "node_id": "ns=2;s=Plant",
+                "node_class": "Object",
+                "children": {
+                    "Pump": {
+                        "node_id": "ns=2;s=Plant.Pump",
+                        "node_class": "Object",
+                        "children": {
+                            "Flow": {
+                                "node_id": "ns=2;s=Plant.Pump.Flow",
+                                "node_class": "Variable",
                             },
-                        }
-                    },
-                }
+                            "Running": {
+                                "node_id": "ns=2;s=Plant.Pump.Running",
+                                "node_class": "Variable",
+                            },
+                        },
+                    }
+                },
             }
-        )
+        }
+        return _result({"tree": tree, "node_count": 4, "truncated": False})
 
     if name == "read_tag":
         code = "SOMETHING_ELSE" if MODE == "broken" else "TAG_NOT_FOUND"

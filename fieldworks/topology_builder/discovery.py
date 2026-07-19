@@ -83,7 +83,12 @@ async def crawl_opcua(
         params["depth"] = depth
 
     result = await session.call_tool("get_node_tree", params)
-    tree = _payload(result) or {}
+    payload = _payload(result) or {}
+    # get_node_tree wraps the tree in {"tree": ..., "node_count": ..., "truncated": ...}
+    # — unlike get_topic_tree, which returns the tree bare. Confirmed against the real
+    # opcua-mcp binary (fieldworks-adapters/opcua-mcp/src/server.rs), not just the fake
+    # adapter test fixture, which didn't model this envelope and masked the mismatch.
+    tree = payload.get("tree", {})
 
     paths: list[str] = []
     _flatten_node_tree(tree, "", paths)
