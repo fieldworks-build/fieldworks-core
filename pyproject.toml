@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fieldworks-core"
-version = "1.0.2"
+version = "1.0.3"
 description = "Fieldworks industrial AI framework — core components"
 readme = "README.md"
 requires-python = ">=3.11"
