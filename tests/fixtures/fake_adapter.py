@@ -133,7 +133,16 @@ async def call_tool(name: str, arguments: dict):
         return _result({"tree": tree, "node_count": 4, "truncated": False})
 
     if name == "read_tag":
-        code = "SOMETHING_ELSE" if MODE == "broken" else "TAG_NOT_FOUND"
+        # "timeout" mode: some protocols (MQTT) can't tell "doesn't exist"
+        # apart from "hasn't published recently" and can only time out —
+        # exercises the TIMEOUT branch of the not-found check, which
+        # TAG_NOT_FOUND-returning "conformant" mode doesn't reach.
+        if MODE == "broken":
+            code = "SOMETHING_ELSE"
+        elif MODE == "timeout":
+            code = "TIMEOUT"
+        else:
+            code = "TAG_NOT_FOUND"
         return _result(
             {
                 "error": {
@@ -158,15 +167,31 @@ async def call_tool(name: str, arguments: dict):
         )
 
     if name == "read_tag_history":
+        if MODE == "broken":
+            return _result(
+                {
+                    "error": {
+                        "code": "HISTORY_UNAVAILABLE",
+                        "message": "no history",
+                        "tag_id": arguments.get("tag_id"),
+                    }
+                },
+                is_error=True,
+            )
+        # "values" wraps the VQT list — a bare array isn't valid
+        # structuredContent per the MCP spec (fieldworks-adapters#2/#4).
         return _result(
             {
-                "error": {
-                    "code": "HISTORY_UNAVAILABLE",
-                    "message": "no history",
-                    "tag_id": arguments.get("tag_id"),
-                }
-            },
-            is_error=True,
+                "values": [
+                    {
+                        "tag_id": arguments.get("tag_id"),
+                        "value": 1.0,
+                        "quality": "good",
+                        "timestamp": "2026-01-01T00:00:00.000Z",
+                        "units": "",
+                    }
+                ]
+            }
         )
 
     return _result(

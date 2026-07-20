@@ -110,7 +110,7 @@ async def run_conformance(
                     "skipped (no connect_host given)",
                 )
                 report.skip(
-                    "read_tag: unknown tag_id maps to TAG_NOT_FOUND",
+                    "read_tag: unknown tag_id maps to TAG_NOT_FOUND or TIMEOUT",
                     "skipped (no connect_host given)",
                 )
                 report.skip(
@@ -222,14 +222,22 @@ async def _check_connect(
 async def _check_read_tag_not_found(
     report: ConformanceReport, session: ClientSession
 ) -> None:
+    """TAG_NOT_FOUND is the ideal response, but not every protocol can tell
+    "doesn't exist" apart from "hasn't published recently" — MQTT has no
+    server-side topic registry to check against, only an empirical "did a
+    message ever arrive." Confirmed against a live mqtt-mcp: an unknown
+    topic times out (protocol-honest — it can't claim non-existence it
+    can't verify), while opcua-mcp's real address space lets it return
+    TAG_NOT_FOUND outright. Both are conformant; a protocol that could
+    prove non-existence and returned TIMEOUT instead would not be."""
     result = await session.call_tool("read_tag", {"tag_id": _NONEXISTENT_TAG_ID})
     payload = _payload(result)
     code = payload.get("error", {}).get("code")
-    ok = result.isError and code == "TAG_NOT_FOUND"
+    ok = result.isError and code in {"TAG_NOT_FOUND", "TIMEOUT"}
     report.add(
-        "read_tag: unknown tag_id maps to TAG_NOT_FOUND",
+        "read_tag: unknown tag_id maps to TAG_NOT_FOUND or TIMEOUT",
         ok,
-        "ok" if ok else f"expected error code TAG_NOT_FOUND, got: {payload}",
+        "ok" if ok else f"expected error code TAG_NOT_FOUND or TIMEOUT, got: {payload}",
     )
 
 
@@ -277,9 +285,13 @@ async def _check_read_tag_history(
         ok = code in {"HISTORY_UNAVAILABLE", "TAG_NOT_FOUND"}
         message = "ok (unsupported)" if ok else f"unexpected error code: {code}"
     else:
-        ok = isinstance(payload, list)
+        # structuredContent must be an object per the MCP spec — a bare VQT
+        # array isn't valid, so a conformant adapter wraps it (opcua-mcp:
+        # {"values": [...]}, fieldworks-adapters#2/#4 fixed the same bug for
+        # discover_tags/scan/browse).
+        ok = isinstance(payload, dict) and isinstance(payload.get("values"), list)
         message = (
-            "ok (returned a VQT list)"
+            "ok (returned a VQT list under 'values')"
             if ok
             else f"unexpected response shape: {payload}"
         )

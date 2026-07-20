@@ -58,7 +58,7 @@ async def test_connect_host_runs_connection_dependent_checks():
     names = {c.name: c for c in report.checks}
     assert not names["connect: establishes a connection"].skipped
     assert names["connect: establishes a connection"].passed
-    assert names["read_tag: unknown tag_id maps to TAG_NOT_FOUND"].passed
+    assert names["read_tag: unknown tag_id maps to TAG_NOT_FOUND or TIMEOUT"].passed
     assert names["write_tag: rejected write maps to an error code"].passed
     assert names["read_tag_history: returns VQT list or HISTORY_UNAVAILABLE"].passed
 
@@ -69,6 +69,35 @@ async def test_broken_adapter_fails_read_tag_error_code():
     check = next(
         c
         for c in report.checks
-        if c.name == "read_tag: unknown tag_id maps to TAG_NOT_FOUND"
+        if c.name == "read_tag: unknown tag_id maps to TAG_NOT_FOUND or TIMEOUT"
     )
     assert not check.passed
+
+
+@pytest.mark.anyio
+async def test_timeout_is_accepted_for_read_tag_not_found():
+    """Protocols without a server-side tag registry (MQTT) can only time
+    out on an unknown tag — TIMEOUT must be as conformant as TAG_NOT_FOUND,
+    not just something "broken" adapters happen to trigger."""
+    report = await _run("timeout", connect_host="localhost", connect_port=1883)
+    check = next(
+        c
+        for c in report.checks
+        if c.name == "read_tag: unknown tag_id maps to TAG_NOT_FOUND or TIMEOUT"
+    )
+    assert check.passed
+
+
+@pytest.mark.anyio
+async def test_read_tag_history_success_requires_values_list_not_bare_array():
+    """A bare array isn't valid structuredContent (fieldworks-adapters#2/#4)
+    — the success path must be wrapped, and the conformance check must
+    actually look for that wrapper rather than accept anything list-shaped."""
+    report = await _run("conformant", connect_host="localhost", connect_port=1883)
+    check = next(
+        c
+        for c in report.checks
+        if c.name == "read_tag_history: returns VQT list or HISTORY_UNAVAILABLE"
+    )
+    assert check.passed
+    assert "values" in check.message
