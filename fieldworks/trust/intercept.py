@@ -17,9 +17,11 @@ specific:
   whatever the host's UI layer is) and eventually calling `resolve()`.
 - Running the agent loop itself; `await_decision` just wraps the asyncio wait.
 
-ADVISORY/COLLABORATIVE/AUTONOMOUS trust modes (recommend-only, threshold-only,
-and no-intercept-but-log respectively) are not implemented here — this module
-covers only the SUPERVISED intercept-every-write mechanism.
+This module covers only the SUPERVISED intercept-every-write mechanism —
+`PendingActionRegistry`, `await_decision`, and friends only ever run when
+`fieldworks.trust.modes.resolve_disposition()` returns INTERCEPT. The other
+three trust modes (recommend-only, threshold-gated, and no-intercept-but-log
+respectively) are dispatched in `modes.py`.
 """
 
 from __future__ import annotations
@@ -98,12 +100,31 @@ class ProposedAction:
 
 
 def format_decision_result(action: ProposedAction, decision: str) -> str:
-    """Synthesize the tool-result text injected back into the conversation."""
+    """Synthesize the tool-result text injected back into the conversation.
+
+    decision covers both the SUPERVISED intercept outcomes ("approved",
+    anything else meaning denied/timed_out) and the non-intercepting modes'
+    outcomes ("auto_approved" — AUTONOMOUS, or COLLABORATIVE in range;
+    "recommended" — ADVISORY, see fieldworks.trust.modes).
+    """
     if decision == "approved":
         return (
             f"Action approved by operator. "
             f"Proceed with {action.action_type or 'action'} "
             f"on {action.target or 'target'}."
+        )
+    if decision == "auto_approved":
+        return (
+            f"Action auto-approved under the current trust mode. "
+            f"Proceed with {action.action_type or 'action'} "
+            f"on {action.target or 'target'}."
+        )
+    if decision == "recommended":
+        return (
+            f"Recommendation logged under ADVISORY trust mode — no automatic "
+            f"action will be taken. Operator must execute "
+            f"{action.action_type or 'action'} on {action.target or 'target'} "
+            f"manually if they agree."
         )
     return (
         f"Action denied by operator ({decision}). "
