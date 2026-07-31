@@ -43,7 +43,7 @@ memory = [
     "pytz",
 ]
 adapters = [
-    "mcp>=1.0",
+    "mcp>=2.0",
 ]
 trust = [
     "cryptography>=41.0",

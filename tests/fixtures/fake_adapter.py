@@ -35,8 +35,6 @@ _CONFORMANT_TOOLS = [
 # Deliberately drops write_tag to trip the tool-discovery check.
 _BROKEN_TOOLS = [t for t in _CONFORMANT_TOOLS if t != "write_tag"]
 
-server = Server("fake-adapter")
-
 
 def _result(payload, is_error: bool = False) -> types.CallToolResult:
     return types.CallToolResult(
@@ -46,17 +44,25 @@ def _result(payload, is_error: bool = False) -> types.CallToolResult:
     )
 
 
-@server.list_tools()
-async def list_tools() -> list[types.Tool]:
+# mcp 2.0's low-level Server registers request handlers as constructor kwargs
+# (on_list_tools / on_call_tool) instead of decorators applied after
+# construction, so these have to exist before Server(...) is called — see
+# fieldworks-adapters' mcp-aggregator for the same migration.
+
+
+async def _list_tools(ctx, params) -> types.ListToolsResult:
     names = _BROKEN_TOOLS if MODE == "broken" else _CONFORMANT_TOOLS
-    return [
-        types.Tool(name=name, description=name, inputSchema=_EMPTY_SCHEMA)
-        for name in names
-    ]
+    return types.ListToolsResult(
+        tools=[
+            types.Tool(name=name, description=name, inputSchema=_EMPTY_SCHEMA)
+            for name in names
+        ]
+    )
 
 
-@server.call_tool(validate_input=False)
-async def call_tool(name: str, arguments: dict):
+async def _call_tool(ctx, params: types.CallToolRequestParams) -> types.CallToolResult:
+    name = params.name
+    arguments = params.arguments or {}
     if name == "connect":
         return _result(
             {
@@ -197,6 +203,9 @@ async def call_tool(name: str, arguments: dict):
     return _result(
         {"error": {"code": "TAG_NOT_FOUND", "message": "unknown tool"}}, is_error=True
     )
+
+
+server = Server("fake-adapter", on_list_tools=_list_tools, on_call_tool=_call_tool)
 
 
 async def main() -> None:

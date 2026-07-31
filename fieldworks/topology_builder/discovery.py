@@ -26,9 +26,9 @@ if TYPE_CHECKING:
 
 
 def _payload(result: Any) -> Any:
-    """Extract the JSON payload from a CallToolResult, preferring structuredContent."""
-    if result.structuredContent is not None:
-        return result.structuredContent
+    """Extract the JSON payload from a CallToolResult, preferring structured_content."""
+    if result.structured_content is not None:
+        return result.structured_content
     if result.content:
         first = result.content[0]
         text = getattr(first, "text", None)

@@ -65,9 +65,9 @@ class ConformanceReport:
 
 
 def _payload(result) -> dict:
-    """Extract the JSON payload from a CallToolResult, preferring structuredContent."""
-    if result.structuredContent is not None:
-        return result.structuredContent
+    """Extract the JSON payload from a CallToolResult, preferring structured_content."""
+    if result.structured_content is not None:
+        return result.structured_content
     if result.content:
         first = result.content[0]
         text = getattr(first, "text", None)
@@ -182,7 +182,7 @@ async def _check_server_info(
     missing_keys = required_keys - info.keys()
     report.add(
         "get_server_info: response shape",
-        not result.isError and not missing_keys,
+        not result.is_error and not missing_keys,
         "ok" if not missing_keys else f"missing keys: {sorted(missing_keys)}",
     )
 
@@ -210,7 +210,7 @@ async def _check_connect(
         args["port"] = port
     result = await session.call_tool("connect", args)
     payload = _payload(result)
-    ok = not result.isError and payload.get("connected") is True
+    ok = not result.is_error and payload.get("connected") is True
     report.add(
         "connect: establishes a connection",
         ok,
@@ -233,7 +233,7 @@ async def _check_read_tag_not_found(
     result = await session.call_tool("read_tag", {"tag_id": _NONEXISTENT_TAG_ID})
     payload = _payload(result)
     code = payload.get("error", {}).get("code")
-    ok = result.isError and code in {"TAG_NOT_FOUND", "TIMEOUT"}
+    ok = result.is_error and code in {"TAG_NOT_FOUND", "TIMEOUT"}
     report.add(
         "read_tag: unknown tag_id maps to TAG_NOT_FOUND or TIMEOUT",
         ok,
@@ -256,7 +256,7 @@ async def _check_write_tag_rejected(
     )
     payload = _payload(result)
     code = payload.get("error", {}).get("code")
-    ok = result.isError and code in {
+    ok = result.is_error and code in {
         "TAG_NOT_WRITABLE",
         "TAG_NOT_FOUND",
         "PERMISSION_DENIED",
@@ -280,7 +280,7 @@ async def _check_read_tag_history(
         },
     )
     payload = _payload(result)
-    if result.isError:
+    if result.is_error:
         code = payload.get("error", {}).get("code")
         ok = code in {"HISTORY_UNAVAILABLE", "TAG_NOT_FOUND"}
         message = "ok (unsupported)" if ok else f"unexpected error code: {code}"
