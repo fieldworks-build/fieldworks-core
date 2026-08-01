@@ -159,7 +159,7 @@ class KnowledgeClient:
 
         conn = self._get_conn()
         existing = conn.execute(
-            f"SELECT content_hash FROM {self._config.files_table} WHERE path = ?",
+            f"SELECT content_hash FROM {self._config.files_table} WHERE path = ?",  # nosec B608 - files_table validated in KnowledgeConfig.__post_init__
             [str(path)],
         ).fetchone()
         if existing and existing[0] == content_hash:
@@ -180,11 +180,11 @@ class KnowledgeClient:
         vectors = self._embedder.embed([c.text for c in chunks])
 
         conn.execute(
-            f"DELETE FROM {self._config.chunks_table} WHERE source_path = ?",
+            f"DELETE FROM {self._config.chunks_table} WHERE source_path = ?",  # nosec B608 - chunks_table validated in KnowledgeConfig.__post_init__
             [str(path)],
         )
         conn.executemany(
-            f"INSERT INTO {self._config.chunks_table} VALUES (?, ?, ?, ?, ?, ?)",
+            f"INSERT INTO {self._config.chunks_table} VALUES (?, ?, ?, ?, ?, ?)",  # nosec B608 - chunks_table validated in KnowledgeConfig.__post_init__
             [
                 (
                     str(uuid.uuid4()),
@@ -202,7 +202,7 @@ class KnowledgeClient:
             INSERT INTO {self._config.files_table} VALUES (?, ?, ?)
             ON CONFLICT (path) DO UPDATE SET content_hash = EXCLUDED.content_hash,
                                               ingested_at = EXCLUDED.ingested_at
-            """,
+            """,  # nosec B608 - files_table validated in KnowledgeConfig.__post_init__
             [str(path), content_hash, datetime.now(timezone.utc)],
         )
         return len(chunks)
