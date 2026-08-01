@@ -13,6 +13,10 @@ from fieldworks.topology.schema import EquipmentInstance, TagBinding, TopologyCo
 
 if TYPE_CHECKING:
     from fieldworks.memory.client import MemoryClient
+    from fieldworks.memory.knowledge import KnowledgeClient
+
+_KNOWLEDGE_STATIC_QUERY = "safety-critical operating limits and procedures"
+_KNOWLEDGE_TOP_K = 3
 
 
 def build_specialist_prompt(
@@ -21,6 +25,7 @@ def build_specialist_prompt(
     *,
     extra_context: str | None = None,
     memory_client: "MemoryClient | None" = None,
+    knowledge_client: "KnowledgeClient | None" = None,
 ) -> str:
     """Return the system prompt for the Specialist agent responsible for area_id.
 
@@ -31,6 +36,14 @@ def build_specialist_prompt(
         memory_client: Optional MemoryClient. When given, accumulated specialist
             memory and recent incident history for this area are prepended
             ahead of extra_context. None preserves v0.1 behavior.
+        knowledge_client: Optional KnowledgeClient. When given, a small number
+            of always-relevant document excerpts (safety-critical operating
+            limits/procedures) for this area's equipment are prepended ahead
+            of extra_context. This call happens once per session/area before
+            any user turn exists, so it can only surface static excerpts —
+            not query-specific retrieval. For retrieval against the live
+            user question, expose KnowledgeClient.query() as an MCP tool the
+            specialist calls mid-conversation instead.
 
     Returns:
         A fully rendered system prompt string.
@@ -52,6 +65,11 @@ def build_specialist_prompt(
         memory_context = memory_client.get_context(area_id, [i.id for i in instances])
         if memory_context:
             lines += ["", memory_context]
+
+    if knowledge_client is not None:
+        knowledge_context = _static_knowledge_context(knowledge_client, instances)
+        if knowledge_context:
+            lines += ["", knowledge_context]
 
     if extra_context:
         lines += ["", extra_context]
@@ -147,6 +165,18 @@ def build_orchestrator_system(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _static_knowledge_context(
+    knowledge_client, instances: list[EquipmentInstance]
+) -> str:
+    excerpts = knowledge_client.query(_KNOWLEDGE_STATIC_QUERY, top_k=_KNOWLEDGE_TOP_K)
+    if not excerpts:
+        return ""
+    lines = ["── Relevant facility documentation ──"]
+    for excerpt in excerpts:
+        lines.append(f"[{excerpt.source}] {excerpt.text}")
+    return "\n".join(lines)
 
 
 def _normal_state_desc(attr) -> str:
