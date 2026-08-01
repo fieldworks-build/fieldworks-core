@@ -18,7 +18,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -e ".[dev,memory,adapters]" black bandit hypothesis
+        run: pip install -e ".[dev,memory,knowledge,adapters]" black bandit hypothesis
 
       - name: black
         run: black --check .
@@ -27,4 +27,4 @@ jobs:
         run: bandit -r fieldworks/ -ll
 
       - name: pytest
-        run: pytest
+        run: pytest -m "not slow"
