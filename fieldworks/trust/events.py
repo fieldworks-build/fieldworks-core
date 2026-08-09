@@ -49,7 +49,8 @@ class ActionEventStore:
                     description  TEXT,
                     operator_id  TEXT    NOT NULL,
                     decision     TEXT,
-                    outcome      TEXT    DEFAULT 'pending'
+                    outcome      TEXT    DEFAULT 'pending',
+                    site_id      TEXT    NOT NULL DEFAULT ''
                 );
                 """)
             c.commit()
