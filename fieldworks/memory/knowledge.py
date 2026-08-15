@@ -43,6 +43,12 @@ class KnowledgeConfig:
     chunk_size: int = 800
     chunk_overlap: int = 150
     top_k_default: int = 5
+    extension_directory: str | Path | None = None
+    """DuckDB extension search path. For air-gapped deployments, run
+    `INSTALL vss` once while online with this same directory set, bake the
+    resulting extension file into the deployment image, and point this at
+    it — DuckDB finds it locally and skips the network fetch. Unset uses
+    DuckDB's default (~/.duckdb/extensions)."""
 
     def __post_init__(self) -> None:
         for field_name in ("chunks_table", "files_table"):
@@ -85,6 +91,11 @@ class KnowledgeClient:
             db_path = Path(self._config.db_path)
             db_path.parent.mkdir(parents=True, exist_ok=True)
             self._conn = duckdb.connect(str(db_path))
+            if self._config.extension_directory is not None:
+                self._conn.execute(
+                    "SET extension_directory = ?",
+                    [str(self._config.extension_directory)],
+                )
             self._conn.execute("INSTALL vss")
             self._conn.execute("LOAD vss")
             self._init_schema(self._conn)

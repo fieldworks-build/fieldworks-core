@@ -125,3 +125,23 @@ def test_query_with_no_equipment_id_searches_all_docs(tmp_path):
 
     excerpts = client.query("operating limit", top_k=5)
     assert len(excerpts) == 2
+
+
+def test_extension_directory_is_applied_before_install(tmp_path):
+    ext_dir = tmp_path / "vendored-extensions"
+    client = _client(tmp_path, extension_directory=ext_dir)
+
+    conn = client._get_conn()
+    assert conn.execute("SELECT current_setting('extension_directory')").fetchone()[
+        0
+    ] == str(ext_dir)
+    assert any(p.name.startswith("vss") for p in ext_dir.rglob("*"))
+
+
+def test_extension_directory_defaults_to_duckdb_default(tmp_path):
+    client = _client(tmp_path)
+    conn = client._get_conn()
+    assert (
+        conn.execute("SELECT current_setting('extension_directory')").fetchone()[0]
+        == ""
+    )
