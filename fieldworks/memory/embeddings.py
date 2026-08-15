@@ -27,9 +27,19 @@ class FastEmbedProvider:
     """Local ONNX embeddings via fastembed. No API key, no network after the
     one-time model download. Requires the `knowledge` extra:
     pip install fieldworks-core[knowledge]
+
+    For air-gapped deployments, pre-download the model weights while online
+    (`TextEmbedding(model_name=..., cache_dir="./vendor/fastembed")`), bake
+    `cache_dir` into the deployment image, and pass the same `cache_dir` here
+    at runtime. Setting `HF_HUB_OFFLINE=1` makes the no-network guarantee
+    explicit instead of relying on the cache always being warm.
     """
 
-    def __init__(self, model_name: str = "BAAI/bge-small-en-v1.5"):
+    def __init__(
+        self,
+        model_name: str = "BAAI/bge-small-en-v1.5",
+        cache_dir: str | None = None,
+    ):
         try:
             from fastembed import TextEmbedding
         except ImportError as exc:
@@ -38,7 +48,7 @@ class FastEmbedProvider:
                 " pip install fieldworks-core[knowledge]"
             ) from exc
 
-        self._model = TextEmbedding(model_name=model_name)
+        self._model = TextEmbedding(model_name=model_name, cache_dir=cache_dir)
         self.dimension = len(next(self._model.embed(["dimension probe"])))
 
     def embed(self, texts: list[str]) -> list[list[float]]:

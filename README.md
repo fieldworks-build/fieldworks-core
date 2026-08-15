@@ -59,6 +59,54 @@ knowledge.ingest_directory("facility-docs/")  # .md, .txt, text-layer .pdf
 excerpts = knowledge.query("what is the maximum flow rate for the intake pump?", top_k=3)
 ```
 
+### Air-gapped deployment
+
+`KnowledgeClient` hits the network on first use for two things: DuckDB's
+`vss` extension (fetched from DuckDB's extension repository) and
+`FastEmbedProvider`'s ONNX model weights (fetched from Hugging Face Hub,
+~130MB for the default model). Both cache locally after the first fetch, so
+a deployment that pre-warms the cache while online never needs egress at
+runtime.
+
+Pre-fetch once, online:
+
+```bash
+python -c "
+from fastembed import TextEmbedding
+TextEmbedding(model_name='BAAI/bge-small-en-v1.5', cache_dir='./vendor/fastembed')
+"
+python -c "
+import duckdb
+con = duckdb.connect()
+con.execute(\"SET extension_directory = './vendor/duckdb-extensions'\")
+con.execute('INSTALL vss')
+"
+```
+
+Bake `./vendor/` into the deployment image, then point the client at it at
+runtime:
+
+```python
+knowledge = KnowledgeClient(
+    KnowledgeConfig(
+        db_path="knowledge.duckdb",
+        extension_directory="./vendor/duckdb-extensions",
+    ),
+    embedding_provider=FastEmbedProvider(
+        cache_dir="./vendor/fastembed",
+    ),
+)
+```
+
+Set `HF_HUB_OFFLINE=1` in the runtime environment to make the no-network
+guarantee explicit — fastembed respects it and fails loudly instead of
+attempting a network call if the cache is somehow cold.
+
+No HNSW index in v1: DuckDB's HNSW index requires an experimental
+persistence flag for on-disk databases. A brute-force `array_cosine_distance`
+scan is correct and fast at facility-doc corpus scale (hundreds to low
+thousands of chunks); revisit if a deployment's corpus grows much larger.
+
 ## CLI
 
 ```bash
