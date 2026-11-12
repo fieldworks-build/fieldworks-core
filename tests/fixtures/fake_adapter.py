@@ -4,9 +4,9 @@ without a real Rust adapter binary or a live broker.
 Usage: python fake_adapter.py <conformant|broken>
 
 conformant implements the nine-tool contract correctly. broken deliberately
-violates it in a few ways (missing tool, wrong error code, malformed
-get_server_info) so tests can assert the conformance suite actually catches
-regressions instead of always passing.
+violates it in a few ways (missing tool, no tool annotations, wrong error
+code, malformed get_server_info) so tests can assert the conformance suite
+actually catches regressions instead of always passing.
 """
 
 import asyncio
@@ -32,6 +32,12 @@ _CONFORMANT_TOOLS = [
     "write_tag",
     "get_server_info",
 ]
+_READ_ONLY = types.ToolAnnotations(read_only_hint=True, open_world_hint=True)
+_ANNOTATIONS = {
+    "connect": types.ToolAnnotations(read_only_hint=False, destructive_hint=False),
+    "disconnect": types.ToolAnnotations(read_only_hint=False, destructive_hint=False),
+    "write_tag": types.ToolAnnotations(read_only_hint=False, destructive_hint=True),
+}
 # Deliberately drops write_tag to trip the tool-discovery check.
 _BROKEN_TOOLS = [t for t in _CONFORMANT_TOOLS if t != "write_tag"]
 
@@ -54,7 +60,16 @@ async def _list_tools(ctx, params) -> types.ListToolsResult:
     names = _BROKEN_TOOLS if MODE == "broken" else _CONFORMANT_TOOLS
     return types.ListToolsResult(
         tools=[
-            types.Tool(name=name, description=name, inputSchema=_EMPTY_SCHEMA)
+            types.Tool(
+                name=name,
+                description=name,
+                inputSchema=_EMPTY_SCHEMA,
+                # broken declares none, like the adapters before
+                # fieldworks-adapters#15.
+                annotations=(
+                    None if MODE == "broken" else _ANNOTATIONS.get(name, _READ_ONLY)
+                ),
+            )
             for name in names
         ]
     )

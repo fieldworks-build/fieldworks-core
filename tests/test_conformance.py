@@ -35,6 +35,41 @@ async def test_broken_adapter_fails_tool_discovery():
 
 
 @pytest.mark.anyio
+async def test_conformant_adapter_passes_annotation_check():
+    report = await _run("conformant")
+    check = next(c for c in report.checks if c.name.startswith("tool annotations"))
+    assert check.passed, check.message
+
+
+@pytest.mark.anyio
+async def test_broken_adapter_fails_annotation_check():
+    report = await _run("broken")
+    check = next(c for c in report.checks if c.name.startswith("tool annotations"))
+    assert not check.passed
+    assert "read_tag: readOnlyHint must be true" in check.message
+    assert "connect: destructiveHint must be false" in check.message
+
+
+def test_write_tag_marked_non_destructive_fails_annotation_check():
+    import mcp.types as types
+
+    from fieldworks.adapters.conformance import (
+        ConformanceReport,
+        _check_tool_annotations,
+    )
+
+    report = ConformanceReport()
+    write_tag = types.Tool(
+        name="write_tag",
+        inputSchema={"type": "object"},
+        annotations=types.ToolAnnotations(destructive_hint=False),
+    )
+    _check_tool_annotations(report, [write_tag])
+    assert not report.passed
+    assert "write_tag: must not be" in report.checks[0].message
+
+
+@pytest.mark.anyio
 async def test_broken_adapter_fails_server_info_shape():
     report = await _run("broken")
     shape_check = next(

@@ -59,6 +59,14 @@ knowledge.ingest_directory("facility-docs/")  # .md, .txt, text-layer .pdf
 excerpts = knowledge.query("what is the maximum flow rate for the intake pump?", top_k=3)
 ```
 
+Service logging — a rotating `logs/<name>.log` next to the service plus the console, in one format (5 MB × 3 by default; `FIELDWORKS_LOG_MAX_BYTES` / `FIELDWORKS_LOG_BACKUPS` override):
+
+```python
+from fieldworks.service_logging import setup_logging
+
+setup_logging(__file__, "audit_mcp")  # console defaults to stderr; pass console=sys.stdout to change
+```
+
 ### Air-gapped deployment
 
 `KnowledgeClient` hits the network on first use for two things: DuckDB's
@@ -112,6 +120,7 @@ thousands of chunks); revisit if a deployment's corpus grows much larger.
 ```bash
 fieldworks validate topology.yaml
 fieldworks validate topology.yaml --aggregator aggregator.json
+fieldworks test-adapter --command mqtt-mcp   # nine-tool contract, incl. readOnly/destructive tool annotations
 ```
 
 ## Gotcha: MCP server `lifespan=` runs per SSE session, not per process

@@ -8,7 +8,8 @@ This module does, by spawning the adapter binary as an MCP stdio subprocess
 and probing it directly.
 
 Checks are split into two tiers:
-  - Static checks (tool discovery, get_server_info shape) need no live
+  - Static checks (tool discovery, tool annotations, get_server_info shape)
+    need no live
     connection — both adapters answer these while disconnected.
   - Connection checks (error-code mapping on read_tag/write_tag/
     read_tag_history) require an active connect() to a real broker/server.
@@ -35,6 +36,17 @@ REQUIRED_TOOLS = {
 }
 SCAN_TOOL_ALTERNATIVES = {"scan", "browse"}
 TREE_TOOL_ALTERNATIVES = {"get_topic_tree", "get_node_tree"}
+
+# MCP clients gate on tool annotations, and under the spec's defaults an
+# unannotated tool may be destructive — so a client that honors them can't
+# tell read_tag from write_tag unless the adapter says (fieldworks-adapters#15).
+READ_ONLY_TOOLS = (
+    {"discover_tags", "read_tag", "read_tag_history", "get_server_info"}
+    | SCAN_TOOL_ALTERNATIVES
+    | TREE_TOOL_ALTERNATIVES
+)
+NON_DESTRUCTIVE_TOOLS = {"connect", "disconnect"}
+DESTRUCTIVE_TOOLS = {"write_tag"}
 
 _NONEXISTENT_TAG_ID = "__fieldworks_conformance_nonexistent_tag__"
 
@@ -102,6 +114,7 @@ async def run_conformance(
             tool_names = {t.name for t in tools_result.tools}
 
             _check_tool_discovery(report, tool_names)
+            _check_tool_annotations(report, tools_result.tools)
             await _check_server_info(report, session, tool_names)
 
             if connect_host is None:
@@ -161,6 +174,30 @@ def _check_tool_discovery(report: ConformanceReport, tool_names: set[str]) -> No
             if tree_found
             else "neither 'get_topic_tree' nor 'get_node_tree' present"
         ),
+    )
+
+
+def _check_tool_annotations(report: ConformanceReport, tools) -> None:
+    """Read tools must be readOnly, connect/disconnect non-destructive, and
+    write_tag must not claim to be either. Idempotent/open-world hints are
+    left to each adapter."""
+    problems = []
+    for tool in tools:
+        hints = tool.annotations
+        read_only = hints is not None and hints.read_only_hint is True
+        non_destructive = read_only or (
+            hints is not None and hints.destructive_hint is False
+        )
+        if tool.name in READ_ONLY_TOOLS and not read_only:
+            problems.append(f"{tool.name}: readOnlyHint must be true")
+        elif tool.name in NON_DESTRUCTIVE_TOOLS and not non_destructive:
+            problems.append(f"{tool.name}: destructiveHint must be false")
+        elif tool.name in DESTRUCTIVE_TOOLS and non_destructive:
+            problems.append(f"{tool.name}: must not be read-only or non-destructive")
+    report.add(
+        "tool annotations: read-only/destructive hints declared",
+        not problems,
+        "ok" if not problems else "; ".join(problems),
     )
 
 
