@@ -67,6 +67,17 @@ from fieldworks.service_logging import setup_logging
 setup_logging(__file__, "audit_mcp")  # console defaults to stderr; pass console=sys.stdout to change
 ```
 
+`.env` checks — call just before `load_dotenv()` to log a warning when a key is defined on more than one line (python-dotenv uses the last) or when a shell export overrides the file. Keys and line numbers only, never values:
+
+```python
+from dotenv import find_dotenv, load_dotenv
+from fieldworks.service_env import check_env_file, env_source
+
+check_env_file(find_dotenv())
+load_dotenv()
+env_source("ANTHROPIC_API_KEY")  # "the process environment" or "<path> line N"
+```
+
 ### Air-gapped deployment
 
 `KnowledgeClient` hits the network on first use for two things: DuckDB's
