@@ -58,4 +58,8 @@ def setup_logging(
     console_handler = logging.StreamHandler(console or sys.stderr)
     console_handler.setFormatter(formatter)
     logging.basicConfig(level=level, handlers=[console_handler, file_handler])
+    # .env warnings raised before logging existed (fieldworks.service_env).
+    from fieldworks import service_env
+
+    service_env.flush_pending()
     return log_path
