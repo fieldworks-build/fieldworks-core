@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from fieldworks.agents.verdict import FINDINGS_INSTRUCTION, SUMMARY_INSTRUCTION
 from fieldworks.topology.schema import EquipmentInstance, TagBinding, TopologyConfig
 
 if TYPE_CHECKING:
@@ -110,6 +111,9 @@ def build_specialist_prompt(
         "Diagnose using the available data. For any attribute marked NOT INSTRUMENTED,",
         "state explicitly that the equipment lacks that sensor and adjust your diagnostic",
         "scope accordingly. Do not invent readings for unbound attributes.",
+        "",
+        # spec Part III, Verdict Blocks: every Specialist ends with FINDINGS.
+        FINDINGS_INSTRUCTION,
     ]
 
     return "\n".join(lines)
@@ -158,7 +162,10 @@ def build_orchestrator_system(
         f"\n"
         f"Route each diagnostic query to the Specialist(s) responsible for the relevant"
         f" process area(s). Synthesize their findings into a single coherent response."
-        f" Do not duplicate tool calls already made by Specialists."
+        f" Do not duplicate tool calls already made by Specialists.\n"
+        f"\n"
+        # spec Part III, Verdict Blocks: Cascade opens an overview with SUMMARY.
+        f"{SUMMARY_INSTRUCTION}"
     )
 
 

@@ -21,9 +21,12 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from fieldworks.enterprise.schema import EnterpriseConfig
 
-# Ordered least to most severe. The overall status of a cross-plant answer
-# is the most severe status among the plants checked.
-PLANT_STATUSES: tuple[str, ...] = ("Normal", "Anomaly Detected", "Fault Detected")
+from fieldworks.agents.verdict import STATUSES, SUMMARY_BLOCK, most_severe_status
+
+# The overall status of a cross-plant answer is the most severe status among
+# the plants checked (spec Part III, Verdict Blocks). Kept as an alias: the
+# status vocabulary is the verdict module's, not the enterprise layer's.
+PLANT_STATUSES = STATUSES
 
 _SITE_ID_PARAM = {
     "type": "string",
@@ -66,12 +69,6 @@ ENTERPRISE_TOOLS = [
         },
     },
 ]
-
-SUMMARY_BLOCK = """SUMMARY:
-Status: Normal | Anomaly Detected | Fault Detected
-Overview: [one or two plain-language sentences covering every plant you checked]
-Key points:
-- [one bullet per plant with anything notable — omit the list entirely if there is nothing notable]"""
 
 
 def build_enterprise_system(config: "EnterpriseConfig", *, kind: str = "") -> str:
@@ -130,7 +127,8 @@ plant's own operators; report it, don't act on it.
 ── Diagnostic output format ──────────────────────────────────────────────────
 
 Start every status-overview response with this block, before any per-plant
-detail:
+detail. Its Overview covers every plant you checked, and its Key points carry
+one bullet per plant with anything notable:
 
 {SUMMARY_BLOCK}
 
@@ -142,23 +140,6 @@ Per-plant reasoning comes after the block, never before it.
 
 Omit the block for follow-up conversational replies that are not a fresh
 status overview."""
-
-
-def most_severe_status(statuses: Iterable[str]) -> str:
-    """The most severe of the given plant statuses, by PLANT_STATUSES order.
-
-    An unrecognized status (including an unknown plant) counts as at least
-    "Anomaly Detected" — an unknown is never quietly Normal.
-    """
-    worst = 0
-    for status in statuses:
-        rank = (
-            PLANT_STATUSES.index(status)
-            if status in PLANT_STATUSES
-            else PLANT_STATUSES.index("Anomaly Detected")
-        )
-        worst = max(worst, rank)
-    return PLANT_STATUSES[worst]
 
 
 def format_plant_summary(

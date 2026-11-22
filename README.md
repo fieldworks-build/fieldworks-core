@@ -3,7 +3,7 @@
 Core components for the Fieldworks industrial AI framework.
 
 - `fieldworks.topology` — load and validate `topology.yaml` (plant model schema, Part II)
-- `fieldworks.agents` — `build_specialist_prompt()`, `build_specialists()`, `build_orchestrator_system()`
+- `fieldworks.agents` — `build_specialist_prompt()`, `build_specialists()`, `build_orchestrator_system()`; `fieldworks.agents.verdict` holds the FINDINGS/SUMMARY output contract (spec Part III, Verdict Blocks) — the templates the prompts embed and `parse()`, the one parser for them
 - `fieldworks.aggregator` — load and validate `aggregator.json` (connection model, Part II)
 - `fieldworks.memory` — `GraphClient`/`AnalyticalClient`/`SpecialistMemory` (LadybugDB graph + DuckDB analytical + file-based specialist memory) and `KnowledgeClient` (DuckDB+VSS document retrieval/RAG over facility docs) — requires the `memory`/`knowledge` extras, see below
 - `fieldworks.topology_builder` — MQTT/OPC-UA discovery and topology inference (`crawl_mqtt`, `crawl_opcua`, `infer_topology`)
@@ -98,6 +98,17 @@ history.unavailable   # {site_id: reason} — a dead plant is unknown, never "no
 ```
 
 The cross-plant orchestrator's agentic loop and model client stay in the host, as Cascade's and Deadband's do; core provides its contract — `build_enterprise_system(enterprise)`, `ENTERPRISE_TOOLS` (`get_plant_status`, `diagnose_plant`, nothing else), and `format_plant_summary()` / `format_plant_unknown()` for what each tool returns.
+
+Verdict blocks (spec Part III). Specialist prompts end with the FINDINGS instruction and the orchestrator prompt carries the SUMMARY one, so a host only parses:
+
+```python
+from fieldworks.agents.verdict import parse, most_severe_status
+
+v = parse(response_text)              # last complete FINDINGS/SUMMARY block, or None
+v["status"], v["confidence"], v["points"]
+parse(text_so_far, final=False)       # while streaming: only once the block has closed
+most_severe_status(["Normal", "Fault Detected"])   # unknown statuses rank ≥ "Anomaly Detected"
+```
 
 ### Air-gapped deployment
 
