@@ -63,3 +63,38 @@ def test_run_test_adapter_broken_exits_nonzero():
     )
     assert result.returncode == 1
     assert "[FAIL]" in result.stdout
+
+
+def _enterprise(tmp_path, site_id="wtp-riverside-01"):
+    import shutil
+
+    shutil.copy(Path(__file__).parent / "fixtures" / "wtp_topology.yaml", tmp_path)
+    path = tmp_path / "enterprise.yaml"
+    path.write_text(
+        "enterprise: {name: Metro}\n"
+        "regions:\n"
+        "  - id: metro\n"
+        "    name: Metro\n"
+        "    sites:\n"
+        f"      - {{site_id: {site_id}, name: R, topology_file: wtp_topology.yaml,"
+        " chat_ui_url: 'http://r'}\n"
+    )
+    return path
+
+
+def test_validate_enterprise_valid(tmp_path, capsys):
+    from fieldworks.cli import _run_validate_enterprise
+
+    _run_validate_enterprise(_enterprise(tmp_path))
+    assert "valid — Metro, 1 region(s), 1 site(s)" in capsys.readouterr().out
+
+
+def test_validate_enterprise_site_id_mismatch_exits_nonzero(tmp_path, capsys):
+    import pytest
+
+    from fieldworks.cli import _run_validate_enterprise
+
+    with pytest.raises(SystemExit) as exc:
+        _run_validate_enterprise(_enterprise(tmp_path, site_id="other"))
+    assert exc.value.code == 1
+    assert "declares facility.site_id" in capsys.readouterr().err

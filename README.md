@@ -8,6 +8,7 @@ Core components for the Fieldworks industrial AI framework.
 - `fieldworks.memory` — `GraphClient`/`AnalyticalClient`/`SpecialistMemory` (LadybugDB graph + DuckDB analytical + file-based specialist memory) and `KnowledgeClient` (DuckDB+VSS document retrieval/RAG over facility docs) — requires the `memory`/`knowledge` extras, see below
 - `fieldworks.topology_builder` — MQTT/OPC-UA discovery and topology inference (`crawl_mqtt`, `crawl_opcua`, `infer_topology`)
 - `fieldworks.trust` — propose/approve/execute intercept and hash-chained audit trail across the four trust modes
+- `fieldworks.enterprise` — load and validate `enterprise.yaml` (multi-plant registry, Part V) and `federated_read()` across plants; the cross-plant orchestrator's contract is in `fieldworks.agents` (`build_enterprise_system()`, `ENTERPRISE_TOOLS`)
 
 ## Install
 
@@ -78,6 +79,26 @@ load_dotenv()
 env_source("ANTHROPIC_API_KEY")  # "the process environment" or "<path> line N"
 ```
 
+Multi-plant enterprise (spec Part V). `load()` enforces the structural rules; `validate()` checks each site's `topology_file` declares the same `facility.site_id`:
+
+```python
+from fieldworks.enterprise import load, validate, federated_read, SiteUnavailable
+
+enterprise = load("enterprise.yaml")
+result = validate(enterprise, base_dir=".")  # dir holding enterprise.yaml
+
+async def fetch(site_id, site):           # your transport, one plant at a time
+    if not site.aggregator_url:
+        raise SiteUnavailable("no aggregator_url in enterprise.yaml")
+    return await ask_plant_audit_history(site.aggregator_url)
+
+history = await federated_read(enterprise.sites(), fetch, timeout=30)
+history.records       # every plant's records, sorted by ts, each with site_id
+history.unavailable   # {site_id: reason} — a dead plant is unknown, never "no history"
+```
+
+The cross-plant orchestrator's agentic loop and model client stay in the host, as Cascade's and Deadband's do; core provides its contract — `build_enterprise_system(enterprise)`, `ENTERPRISE_TOOLS` (`get_plant_status`, `diagnose_plant`, nothing else), and `format_plant_summary()` / `format_plant_unknown()` for what each tool returns.
+
 ### Air-gapped deployment
 
 `KnowledgeClient` hits the network on first use for two things: DuckDB's
@@ -132,6 +153,7 @@ thousands of chunks); revisit if a deployment's corpus grows much larger.
 fieldworks validate topology.yaml
 fieldworks validate topology.yaml --aggregator aggregator.json
 fieldworks test-adapter --command mqtt-mcp   # nine-tool contract, incl. readOnly/destructive tool annotations
+fieldworks validate-enterprise enterprise.yaml   # Part V registry rules + each site's topology
 ```
 
 ## Gotcha: MCP server `lifespan=` runs per SSE session, not per process
