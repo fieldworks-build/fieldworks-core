@@ -2,6 +2,7 @@
 
 fieldworks validate topology.yaml [--aggregator aggregator.json] [--seed]
 fieldworks test-adapter --command "<binary> [args...]" [--host HOST] [--port PORT]
+fieldworks validate-enterprise enterprise.yaml
 """
 
 from __future__ import annotations
@@ -20,6 +21,10 @@ def main() -> None:
         _main_validate(rest)
     elif subcommand == "test-adapter":
         _main_test_adapter(rest)
+    elif subcommand == "validate-enterprise":
+        if len(rest) != 1:
+            _usage()
+        _run_validate_enterprise(Path(rest[0]))
     else:
         _usage()
 
@@ -186,11 +191,41 @@ def _run_test_adapter(command: str, host: str | None, port: int | None) -> None:
         sys.exit(1)
 
 
+def _run_validate_enterprise(path: Path) -> None:
+    """Structural checks (load) plus every site's topology_file (validate) —
+    together, the full Part V rule set."""
+    from fieldworks.enterprise import load, validate
+
+    try:
+        config = load(path)
+    except FileNotFoundError:
+        print(f"error: file not found: {path}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
+
+    result = validate(config, path.parent)
+    for warning in result.warnings:
+        print(f"warning: {warning}")
+    for error in result.errors:
+        print(f"error: {error}", file=sys.stderr)
+    if not result.valid:
+        sys.exit(1)
+
+    sites = config.sites()
+    print(
+        f"{path}: valid — {config.enterprise.name}, {len(config.regions)}"
+        f" region(s), {len(sites)} site(s)"
+    )
+
+
 def _usage() -> None:
     print(
         "usage: fieldworks validate topology.yaml [--aggregator aggregator.json] [--seed]\n"
         '       fieldworks test-adapter --command "<binary> [args...]"'
-        " [--host HOST] [--port PORT]",
+        " [--host HOST] [--port PORT]\n"
+        "       fieldworks validate-enterprise enterprise.yaml",
         file=sys.stderr,
     )
     sys.exit(1)
