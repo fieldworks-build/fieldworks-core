@@ -102,3 +102,35 @@ def test_format_decision_result_recommended():
     assert "ADVISORY" in text
     assert "manually" in text
     assert "Chlorine_01" in text
+
+
+# ── configured mode (core#45) ────────────────────────────────────────────────
+
+from fieldworks.trust.modes import log_mode_configured  # noqa: E402
+
+
+@pytest.mark.parametrize("value", ["collaborative", "COLLABORATIVE", " Collaborative "])
+def test_parse_accepts_config_spelling(value):
+    assert TrustMode.parse(value) == TrustMode.COLLABORATIVE
+
+
+def test_parse_names_the_valid_modes():
+    with pytest.raises(ValueError, match="supervised, advisory, collaborative"):
+        TrustMode.parse("assisted")
+
+
+def test_log_mode_configured_writes_a_startup_record(tmp_path):
+    audit = AuditLog(AuditLogConfig(log_path=tmp_path / "audit.jsonl"))
+    log_mode_configured(
+        audit,
+        mode=TrustMode.AUTONOMOUS,
+        notes="Elevated after 90-day evaluation.",
+        notify_channel="mailto:ops@example.com",
+        site_id="wtp-riverside-01",
+    )
+    (record,) = audit.read()
+    assert record["event"] == "trust_mode_configured"
+    assert record["trust_mode"] == "AUTONOMOUS"
+    assert record["trust_mode_notes"] == "Elevated after 90-day evaluation."
+    assert record["autonomous_notify_channel"] == "mailto:ops@example.com"
+    assert record["site_id"] == "wtp-riverside-01"

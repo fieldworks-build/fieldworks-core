@@ -11,12 +11,35 @@ from pydantic import BaseModel, BeforeValidator, model_validator
 # ---------------------------------------------------------------------------
 
 
+def _lower(value: object) -> object:
+    return value.strip().lower() if isinstance(value, str) else value
+
+
 class FacilityConfig(BaseModel):
     name: str
     site_id: str
     description: str | None = None
     timezone: str
     units_system: str = "metric"
+    # Trust mode belongs to the facility (spec Part III). Plain lowercase
+    # strings here so the topology package needs no `trust` extra; hosts get
+    # the enum with fieldworks.trust.TrustMode.parse(facility.trust_mode).
+    trust_mode: Annotated[
+        Literal["advisory", "supervised", "collaborative", "autonomous"],
+        BeforeValidator(_lower),
+    ] = "supervised"
+    trust_mode_notes: str | None = None
+    autonomous_notify_channel: str | None = None
+
+    @model_validator(mode="after")
+    def _autonomous_needs_a_channel(self) -> FacilityConfig:
+        if self.trust_mode == "autonomous" and not self.autonomous_notify_channel:
+            raise ValueError(
+                "facility.trust_mode is autonomous, so "
+                "facility.autonomous_notify_channel is required: operators "
+                "are notified of every autonomous action"
+            )
+        return self
 
 
 # ---------------------------------------------------------------------------

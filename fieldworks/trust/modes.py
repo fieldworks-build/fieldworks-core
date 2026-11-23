@@ -38,6 +38,18 @@ class TrustMode(str, Enum):
     COLLABORATIVE = "COLLABORATIVE"
     AUTONOMOUS = "AUTONOMOUS"
 
+    @classmethod
+    def parse(cls, value: str) -> TrustMode:
+        """The mode a config value names, in any case: topology.yaml's
+        `facility.trust_mode` is lowercase ("collaborative")."""
+        try:
+            return cls(value.strip().upper())
+        except ValueError:
+            names = ", ".join(m.value.lower() for m in cls)
+            raise ValueError(
+                f"unknown trust mode {value!r}; expected one of: {names}"
+            ) from None
+
 
 class Disposition(str, Enum):
     INTERCEPT = "intercept"  # block for operator approval, same as SUPERVISED
@@ -90,4 +102,28 @@ def log_mode_change(
         to_mode=to_mode,
         changed_by=changed_by,
         session_id=session_id,
+    )
+
+
+def log_mode_configured(
+    audit: "AuditLog",
+    *,
+    mode: TrustMode,
+    notes: str | None = None,
+    notify_channel: str | None = None,
+    site_id: str | None = None,
+) -> None:
+    """Record the trust mode a deployment starts in. Part III: "Every trust
+    mode configuration is logged on startup." Call once at host startup,
+    after reading `facility.trust_mode` from topology.yaml, so the chain
+    shows which mode governed every action that follows — including a mode
+    edited in the file between restarts, which never passes through
+    log_mode_change().
+    """
+    audit.log(
+        "trust_mode_configured",
+        trust_mode=mode,
+        trust_mode_notes=notes,
+        autonomous_notify_channel=notify_channel,
+        site_id=site_id,
     )
