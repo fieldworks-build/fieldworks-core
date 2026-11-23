@@ -15,6 +15,13 @@ from fieldworks.trust.audit import (
     parse_audit_key,
 )
 from fieldworks.trust.events import ActionEventStore, ActionEventStoreConfig
+from fieldworks.trust.identity import (
+    AUTH_METHODS,
+    DECISIONS,
+    check_approver,
+    dispatch_approver,
+    trust_mode_operator,
+)
 from fieldworks.trust.intercept import (
     PROPOSE_ACTION_SCHEMA,
     PROPOSE_ACTION_TOOL,
@@ -27,6 +34,7 @@ from fieldworks.trust.modes import (
     Disposition,
     TrustMode,
     log_mode_change,
+    log_mode_configured,
     resolve_disposition,
 )
 
@@ -37,6 +45,11 @@ __all__ = [
     "parse_audit_key",
     "ActionEventStore",
     "ActionEventStoreConfig",
+    "AUTH_METHODS",
+    "DECISIONS",
+    "check_approver",
+    "dispatch_approver",
+    "trust_mode_operator",
     "PROPOSE_ACTION_TOOL",
     "PROPOSE_ACTION_SCHEMA",
     "ProposedAction",
@@ -47,4 +60,5 @@ __all__ = [
     "Disposition",
     "resolve_disposition",
     "log_mode_change",
+    "log_mode_configured",
 ]

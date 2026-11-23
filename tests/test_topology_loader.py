@@ -215,3 +215,49 @@ def test_convenience_lookup_instances_in_area(wtp_topology):
     ids = {i.id for i in intake}
     assert "raw_water_pump_1" in ids
     assert "raw_water_pump_2" in ids
+
+
+# ── facility.trust_mode (core#45, spec Part III) ─────────────────────────────
+
+
+def test_trust_mode_defaults_to_supervised(tmp_path):
+    from fieldworks.topology.loader import load
+
+    facility = load(write_yaml(tmp_path, base_topology())).facility
+    assert facility.trust_mode == "supervised"
+    assert facility.trust_mode_notes is None
+    assert facility.autonomous_notify_channel is None
+
+
+def test_trust_mode_is_read_in_any_case(tmp_path):
+    from fieldworks.topology.loader import load
+    from fieldworks.trust import TrustMode
+
+    data = base_topology()
+    data["facility"]["trust_mode"] = "Collaborative"
+    data["facility"]["trust_mode_notes"] = "Elevated after 90 days."
+    facility = load(write_yaml(tmp_path, data)).facility
+    assert facility.trust_mode == "collaborative"
+    assert facility.trust_mode_notes == "Elevated after 90 days."
+    assert TrustMode.parse(facility.trust_mode) == TrustMode.COLLABORATIVE
+
+
+def test_unknown_trust_mode_is_rejected(tmp_path):
+    from fieldworks.topology.loader import load
+
+    data = base_topology()
+    data["facility"]["trust_mode"] = "assisted"
+    with pytest.raises(ValueError, match="trust_mode"):
+        load(write_yaml(tmp_path, data))
+
+
+def test_autonomous_requires_a_notify_channel(tmp_path):
+    from fieldworks.topology.loader import load
+
+    data = base_topology()
+    data["facility"]["trust_mode"] = "autonomous"
+    with pytest.raises(ValueError, match="autonomous_notify_channel is required"):
+        load(write_yaml(tmp_path, data))
+
+    data["facility"]["autonomous_notify_channel"] = "mailto:ops@example.com"
+    assert load(write_yaml(tmp_path, data)).facility.trust_mode == "autonomous"

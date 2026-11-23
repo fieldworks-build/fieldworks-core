@@ -7,7 +7,7 @@ Core components for the Fieldworks industrial AI framework.
 - `fieldworks.aggregator` — load and validate `aggregator.json` (connection model, Part II)
 - `fieldworks.memory` — `GraphClient`/`AnalyticalClient`/`SpecialistMemory` (LadybugDB graph + DuckDB analytical + file-based specialist memory) and `KnowledgeClient` (DuckDB+VSS document retrieval/RAG over facility docs) — requires the `memory`/`knowledge` extras, see below
 - `fieldworks.topology_builder` — MQTT/OPC-UA discovery and topology inference (`crawl_mqtt`, `crawl_opcua`, `infer_topology`)
-- `fieldworks.trust` — propose/approve/execute intercept and hash-chained audit trail across the four trust modes
+- `fieldworks.trust` — propose/approve/execute intercept and hash-chained audit trail across the four trust modes, with honest approver records (`operator_id` + `auth_method`) and the startup trust-mode record
 - `fieldworks.enterprise` — load and validate `enterprise.yaml` (multi-plant registry, Part V) and `federated_read()` across plants; the cross-plant orchestrator's contract is in `fieldworks.agents` (`build_enterprise_system()`, `ENTERPRISE_TOOLS`)
 
 ## Install

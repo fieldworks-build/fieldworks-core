@@ -13,11 +13,22 @@ from __future__ import annotations
 import logging
 import sqlite3
 import threading
+import warnings
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from fieldworks.trust.identity import check_approver
+
 logger = logging.getLogger(__name__)
+
+
+# Columns added after the first release, with the DDL that adds them to an
+# existing table. Constant names and types only: never user input.
+_ADDED_COLUMNS = (
+    ("site_id", "TEXT NOT NULL DEFAULT ''"),
+    ("auth_method", "TEXT"),
+)
 
 
 @dataclass
@@ -50,9 +61,17 @@ class ActionEventStore:
                     operator_id  TEXT    NOT NULL,
                     decision     TEXT,
                     outcome      TEXT    DEFAULT 'pending',
-                    site_id      TEXT    NOT NULL DEFAULT ''
+                    site_id      TEXT    NOT NULL DEFAULT '',
+                    auth_method  TEXT
                 );
                 """)
+            # Additive migration for stores created before a column existed.
+            have = {
+                row["name"] for row in c.execute("PRAGMA table_info(action_events)")
+            }
+            for name, ddl in _ADDED_COLUMNS:
+                if name not in have:
+                    c.execute(f"ALTER TABLE action_events ADD COLUMN {name} {ddl}")
             c.commit()
 
     def log_action_event(
@@ -65,15 +84,39 @@ class ActionEventStore:
         description: str,
         decision: str,
         operator_id: str,
+        auth_method: str | None = None,
         outcome: str = "pending",
     ) -> None:
+        """Record one step of a proposed action.
+
+        `auth_method` says how the deployment established `operator_id`
+        (spec Part III): "user", "shared_credential" or "trust_mode". With
+        it, the record is checked for honesty (see
+        fieldworks.trust.identity.check_approver) and a ValueError raised
+        before anything is written. For an action dispatch settled itself,
+        pass the fields from dispatch_approver().
+
+        Omitting it is deprecated: the record is written without one, as
+        before 1.6.0.
+        """
+        if auth_method is None:
+            warnings.warn(
+                "log_action_event() without auth_method is deprecated; spec "
+                "v0.3 requires it on every record that carries operator_id",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            check_approver(
+                decision=decision, operator_id=operator_id, auth_method=auth_method
+            )
         try:
             with self._lock, self._conn() as c:
                 c.execute(
                     """INSERT INTO action_events
                        (ts, session_id, action_type, target, value, description,
-                        operator_id, decision, outcome)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        operator_id, decision, outcome, auth_method)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         datetime.now(timezone.utc).isoformat(),
                         session_id,
@@ -84,6 +127,7 @@ class ActionEventStore:
                         operator_id,
                         decision,
                         outcome,
+                        auth_method,
                     ),
                 )
                 c.commit()
