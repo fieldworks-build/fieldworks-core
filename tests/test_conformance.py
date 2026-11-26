@@ -136,3 +136,132 @@ async def test_read_tag_history_success_requires_values_list_not_bare_array():
     )
     assert check.passed
     assert "values" in check.message
+
+
+# ── Known-tag checks (core#44, spec Part II "Adapter conformance suite") ─────
+
+from fieldworks.adapters.conformance import (  # noqa: E402
+    CHECK_DISCOVER,
+    CHECK_HISTORY_KNOWN,
+    CHECK_INVALID_VALUE,
+    CHECK_READ_KNOWN,
+    CHECK_SCAN,
+    CHECK_TREE,
+)
+
+TAG = "Plant/WTP/Pump/RawWater_01/Flow"
+KNOWN = (CHECK_READ_KNOWN, CHECK_HISTORY_KNOWN, CHECK_SCAN, CHECK_TREE)
+LIVE = {"connect_host": "localhost", "connect_port": 1883}
+
+
+def _checks(report):
+    return {c.name: c for c in report.checks}
+
+
+@pytest.mark.anyio
+async def test_conformant_adapter_passes_known_tag_checks_from_discovery():
+    checks = _checks(await _run("conformant", **LIVE))
+    assert checks[CHECK_DISCOVER].passed
+    assert "1 tags" in checks[CHECK_DISCOVER].message
+    for name in KNOWN:
+        assert checks[name].passed and not checks[name].skipped, checks[name]
+    assert TAG in checks[CHECK_READ_KNOWN].message
+
+
+@pytest.mark.anyio
+async def test_empty_surface_skips_known_tag_checks_instead_of_failing():
+    report = await _run("empty", **LIVE)
+    checks = _checks(report)
+    assert checks[CHECK_DISCOVER].passed
+    assert "no tags" in checks[CHECK_DISCOVER].message
+    for name in KNOWN:
+        assert checks[name].skipped
+        assert "discover_tags found no tags" in checks[name].message
+    assert report.passed
+
+
+@pytest.mark.anyio
+async def test_malformed_descriptors_fail_discovery():
+    check = _checks(await _run("malformed", **LIVE))[CHECK_DISCOVER]
+    assert not check.passed
+    assert "missing name" in check.message
+    assert "writable is not a bool" in check.message
+
+
+@pytest.mark.anyio
+async def test_given_tag_runs_known_checks_and_catches_bad_data():
+    checks = _checks(await _run("malformed", tag_id=TAG, **LIVE))
+    read = checks[CHECK_READ_KNOWN]
+    assert not read.passed
+    assert "quality 'ok'" in read.message
+    assert "not ISO 8601 UTC" in read.message
+    assert "not ordered" in checks[CHECK_HISTORY_KNOWN].message
+    assert not checks[CHECK_SCAN].passed
+    assert not checks[CHECK_TREE].passed
+
+
+@pytest.mark.anyio
+async def test_invalid_value_check_is_opt_in():
+    check = _checks(await _run("conformant", **LIVE))[CHECK_INVALID_VALUE]
+    assert check.skipped
+    assert "sends a real write" in check.message
+
+
+@pytest.mark.anyio
+async def test_out_of_range_write_must_be_refused():
+    ok = _checks(await _run("conformant", write_tag_id=TAG, invalid_value=1e9, **LIVE))[
+        CHECK_INVALID_VALUE
+    ]
+    assert ok.passed and not ok.skipped
+
+    written = _checks(
+        await _run("malformed", write_tag_id=TAG, invalid_value=1e9, **LIVE)
+    )[CHECK_INVALID_VALUE]
+    assert not written.passed
+    assert "was WRITTEN" in written.message
+
+
+@pytest.mark.anyio
+async def test_no_connect_host_skips_every_new_check():
+    checks = _checks(await _run("conformant"))
+    for name in (CHECK_DISCOVER, *KNOWN, CHECK_INVALID_VALUE):
+        assert checks[name].skipped
+
+
+def test_vqt_timestamp_must_be_utc():
+    from fieldworks.adapters.conformance import _vqt_problems
+
+    vqt = {
+        "tag_id": "t",
+        "value": 1.0,
+        "quality": "good",
+        "timestamp": "2026-01-01T00:00:00+02:00",
+        "units": "",
+    }
+    assert _vqt_problems(vqt) == [
+        "timestamp '2026-01-01T00:00:00+02:00' is not ISO 8601 UTC"
+    ]
+    assert _vqt_problems({**vqt, "timestamp": "2026-01-01T00:00:00.000Z"}) == []
+
+
+@pytest.mark.anyio
+async def test_scan_needing_protocol_args_is_skipped_not_failed():
+    """modbus-mcp's scan requires register_type/start_address/count; Part I
+    defines no such parameters, so the suite can't invent them."""
+    import mcp.types as types
+
+    from fieldworks.adapters.conformance import ConformanceReport, _check_scan
+
+    scan = types.Tool(
+        name="scan",
+        inputSchema={
+            "type": "object",
+            "required": ["register_type", "start_address", "count"],
+        },
+    )
+    report = ConformanceReport()
+    await _check_scan(report, None, [scan], None)  # never reaches the session
+    (check,) = report.checks
+    assert check.skipped
+    assert "count, register_type, start_address" in check.message
+    assert "--scan-args" in check.message

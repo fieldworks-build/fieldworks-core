@@ -164,8 +164,11 @@ thousands of chunks); revisit if a deployment's corpus grows much larger.
 fieldworks validate topology.yaml
 fieldworks validate topology.yaml --aggregator aggregator.json
 fieldworks test-adapter --command mqtt-mcp   # nine-tool contract, incl. readOnly/destructive tool annotations
+fieldworks test-adapter --command opcua-mcp --host 127.0.0.1 --port 4840   # + live checks
 fieldworks validate-enterprise enterprise.yaml   # Part V registry rules + each site's topology
 ```
+
+With `--host`, `test-adapter` also checks error codes, `discover_tags` descriptors, and, for a known tag (`--tag`, else the first discovered), the VQT from `read_tag`, ordered history, a non-empty `browse`/`scan` and a structured tree. A surface with no tags skips the known-tag checks. A `scan` that needs protocol-specific arguments takes them as `--scan-args '{"register_type": "holding", "start_address": 100, "count": 4}'`. `--write-tag TAG --invalid-value VALUE` checks that an out-of-range write is refused with `INVALID_VALUE`. It sends a real write, so it only runs when asked.
 
 ## Gotcha: MCP server `lifespan=` runs per SSE session, not per process
 

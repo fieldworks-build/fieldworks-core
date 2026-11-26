@@ -1,12 +1,15 @@
 """Minimal fake MCP stdio adapter for exercising fieldworks.adapters.conformance
 without a real Rust adapter binary or a live broker.
 
-Usage: python fake_adapter.py <conformant|broken>
+Usage: python fake_adapter.py <conformant|broken|timeout|empty|malformed>
 
 conformant implements the nine-tool contract correctly. broken deliberately
 violates it in a few ways (missing tool, no tool annotations, wrong error
 code, malformed get_server_info) so tests can assert the conformance suite
-actually catches regressions instead of always passing.
+actually catches regressions instead of always passing. empty carries no
+tags at all, like an empty test broker. malformed gets the known-tag data
+wrong: descriptors missing fields, a bad VQT, unordered history, an empty
+scan, a bare tree, and an out-of-range write that goes through.
 """
 
 import asyncio
@@ -38,6 +41,39 @@ _ANNOTATIONS = {
     "disconnect": types.ToolAnnotations(read_only_hint=False, destructive_hint=False),
     "write_tag": types.ToolAnnotations(read_only_hint=False, destructive_hint=True),
 }
+# The one tag the fake surface carries. Engineering range is -1000..1000;
+# normal_range is the narrower operating band.
+TAG = "Plant/WTP/Pump/RawWater_01/Flow"
+_DESCRIPTOR = {
+    "tag_id": TAG,
+    "name": "Flow",
+    "description": "Raw water flow",
+    "units": "m3/h",
+    "data_type": "float",
+    "writable": True,
+    "process_area": "intake",
+    "equipment_id": "RawWater_01",
+    "normal_range": {"min": 10.0, "max": 90.0},
+}
+
+
+def _vqt(ts: str, value: float = 42.0) -> dict:
+    return {
+        "tag_id": TAG,
+        "value": value,
+        "quality": "good",
+        "timestamp": ts,
+        "units": "m3/h",
+    }
+
+
+def _error(code: str, tag_id) -> types.CallToolResult:
+    return _result(
+        {"error": {"code": code, "message": code.lower(), "tag_id": tag_id}},
+        is_error=True,
+    )
+
+
 # Deliberately drops write_tag to trip the tool-discovery check.
 _BROKEN_TOOLS = [t for t in _CONFORMANT_TOOLS if t != "write_tag"]
 
@@ -78,6 +114,33 @@ async def _list_tools(ctx, params) -> types.ListToolsResult:
 async def _call_tool(ctx, params: types.CallToolRequestParams) -> types.CallToolResult:
     name = params.name
     arguments = params.arguments or {}
+    tag_id = arguments.get("tag_id")
+
+    # The known-tag surface. Unknown tags fall through to the original
+    # error-path behavior below.
+    if name == "discover_tags":
+        if MODE == "empty":
+            return _result({"tags": []})
+        if MODE == "malformed":
+            return _result({"tags": [{"tag_id": TAG, "writable": "yes"}]})
+        return _result({"tags": [_DESCRIPTOR]})
+    if name == "scan":
+        if MODE in ("empty", "malformed"):
+            return _result({"entries": []})
+        return _result({"entries": [{"topic": TAG, "value": 42.0}]})
+    if name == "read_tag" and tag_id == TAG and MODE != "empty":
+        if MODE == "malformed":
+            return _result({**_vqt("2026-01-01 00:00:00"), "quality": "ok"})
+        return _result(_vqt("2026-01-01T00:00:00.000Z"))
+    if name == "read_tag_history" and tag_id == TAG and MODE != "empty":
+        first, second = "2026-01-01T00:00:00.000Z", "2026-01-01T00:01:00.000Z"
+        if MODE == "malformed":
+            first, second = second, first
+        return _result({"values": [_vqt(first, 41.0), _vqt(second, 42.0)]})
+    if name == "write_tag" and tag_id == TAG:
+        if MODE == "malformed" or -1000 <= arguments.get("value", 0) <= 1000:
+            return _result({**_vqt("2026-01-01T00:00:00.000Z"), "operator_id": "x"})
+        return _error("INVALID_VALUE", tag_id)
     if name == "connect":
         return _result(
             {
@@ -102,6 +165,9 @@ async def _call_tool(ctx, params: types.CallToolRequestParams) -> types.CallTool
         if MODE == "broken":
             del info["capabilities"]  # trips the response-shape check
         return _result(info)
+
+    if name == "get_topic_tree" and MODE in ("empty", "malformed"):
+        return _result({})
 
     if name == "get_topic_tree":
         # Real shape (mqtt-mcp's build_topic_tree): no "children" wrapper —
