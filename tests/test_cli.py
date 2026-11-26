@@ -65,6 +65,43 @@ def test_run_test_adapter_broken_exits_nonzero():
     assert "[FAIL]" in result.stdout
 
 
+def _test_adapter(mode: str, *extra: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [
+            str(_FIELDWORKS_BIN),
+            "test-adapter",
+            "--command",
+            f"{shlex.quote(sys.executable)} {shlex.quote(str(_FAKE_ADAPTER))} {mode}",
+            *extra,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+
+def test_run_test_adapter_runs_the_invalid_value_check_when_asked():
+    tag = "Plant/WTP/Pump/RawWater_01/Flow"
+    result = _test_adapter(
+        "conformant",
+        "--host",
+        "localhost",
+        "--write-tag",
+        tag,
+        "--invalid-value",
+        "1e9",
+    )
+    assert result.returncode == 0, result.stdout
+    assert "[PASS] write_tag: out-of-range value maps to INVALID_VALUE" in result.stdout
+    assert "[PASS] read_tag: known tag returns a valid VQT envelope" in result.stdout
+
+
+def test_run_test_adapter_needs_both_write_flags():
+    result = _test_adapter("conformant", "--write-tag", "t")
+    assert result.returncode == 1
+    assert "usage:" in result.stderr
+
+
 def _enterprise(tmp_path, site_id="wtp-riverside-01"):
     import shutil
 

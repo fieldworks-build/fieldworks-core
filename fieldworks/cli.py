@@ -2,6 +2,8 @@
 
 fieldworks validate topology.yaml [--aggregator aggregator.json] [--seed]
 fieldworks test-adapter --command "<binary> [args...]" [--host HOST] [--port PORT]
+                        [--tag TAG_ID] [--write-tag TAG_ID --invalid-value VALUE]
+                        [--scan-args JSON]
 fieldworks validate-enterprise enterprise.yaml
 """
 
@@ -141,6 +143,10 @@ def _main_test_adapter(args: list[str]) -> None:
     command: str | None = None
     host: str | None = None
     port: int | None = None
+    tag: str | None = None
+    write_tag: str | None = None
+    invalid_value: float | None = None
+    scan_args: dict | None = None
     i = 0
     while i < len(args):
         if args[i] == "--command" and i + 1 < len(args):
@@ -152,16 +158,39 @@ def _main_test_adapter(args: list[str]) -> None:
         elif args[i] == "--port" and i + 1 < len(args):
             port = int(args[i + 1])
             i += 2
+        elif args[i] == "--tag" and i + 1 < len(args):
+            tag = args[i + 1]
+            i += 2
+        elif args[i] == "--write-tag" and i + 1 < len(args):
+            write_tag = args[i + 1]
+            i += 2
+        elif args[i] == "--invalid-value" and i + 1 < len(args):
+            invalid_value = float(args[i + 1])
+            i += 2
+        elif args[i] == "--scan-args" and i + 1 < len(args):
+            import json
+
+            scan_args = json.loads(args[i + 1])
+            i += 2
         else:
             i += 1
 
-    if command is None:
+    if command is None or (write_tag is None) != (invalid_value is None):
+        # --write-tag and --invalid-value only make sense together.
         _usage()
 
-    _run_test_adapter(command, host, port)
+    _run_test_adapter(command, host, port, tag, write_tag, invalid_value, scan_args)
 
 
-def _run_test_adapter(command: str, host: str | None, port: int | None) -> None:
+def _run_test_adapter(
+    command: str,
+    host: str | None,
+    port: int | None,
+    tag: str | None = None,
+    write_tag: str | None = None,
+    invalid_value: float | None = None,
+    scan_args: dict | None = None,
+) -> None:
     try:
         import asyncio
         import shlex
@@ -179,7 +208,16 @@ def _run_test_adapter(command: str, host: str | None, port: int | None) -> None:
     binary, binary_args = parts[0], parts[1:]
 
     report = asyncio.run(
-        run_conformance(binary, binary_args, connect_host=host, connect_port=port)
+        run_conformance(
+            binary,
+            binary_args,
+            connect_host=host,
+            connect_port=port,
+            tag_id=tag,
+            write_tag_id=write_tag,
+            invalid_value=invalid_value,
+            scan_args=scan_args,
+        )
     )
 
     for check in report.checks:
@@ -225,6 +263,9 @@ def _usage() -> None:
         "usage: fieldworks validate topology.yaml [--aggregator aggregator.json] [--seed]\n"
         '       fieldworks test-adapter --command "<binary> [args...]"'
         " [--host HOST] [--port PORT]\n"
+        "                               [--tag TAG_ID]"
+        " [--write-tag TAG_ID --invalid-value VALUE]\n"
+        "                               [--scan-args JSON]\n"
         "       fieldworks validate-enterprise enterprise.yaml",
         file=sys.stderr,
     )
